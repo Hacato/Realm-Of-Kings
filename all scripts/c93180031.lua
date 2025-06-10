@@ -56,14 +56,14 @@ function s.drcost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 function s.drtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
-		return Duel.GetMatchingGroupCount(aux.FilterFaceupFunction(Card.IsType,TYPE_EFFECT),tp,0,LOCATION_MZONE,nil)>0
+		return Duel.GetMatchingGroupCount(Auxiliary.FaceupFilter(Card.IsType,TYPE_EFFECT),tp,0,LOCATION_MZONE,nil)>0
 	end
 	Duel.SetOperationInfo(0,CATEGORY_DISABLE,nil,1,0,0)
 end
 function s.drop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local ct=e:GetLabel()
-	local sg=Duel.GetMatchingGroup(aux.FilterFaceupFunction(Card.IsType,TYPE_EFFECT),tp,0,LOCATION_MZONE,nil)
+	local sg=Duel.GetMatchingGroup(Auxiliary.FaceupFilter(Card.IsType,TYPE_EFFECT),tp,0,LOCATION_MZONE,nil)
 	if #sg<=0 then return end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)
 	local tc=sg:Select(tp,1,1,nil):GetFirst()

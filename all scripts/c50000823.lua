@@ -23,7 +23,7 @@ function s.initial_effect(c)
 	e3:SetType(EFFECT_TYPE_TRIGGER_O+EFFECT_TYPE_FIELD)
 	e3:SetRange(LOCATION_FZONE)
 	e3:SetCode(EVENT_PHASE+PHASE_STANDBY)
-	e3:SetCountLimit(1,id)
+	e3:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	e3:SetCondition(s.con)
 	e3:SetTarget(s.tg)
 	e3:SetOperation(s.op)
@@ -35,7 +35,8 @@ function s.initial_effect(c)
 	e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e4:SetCode(EVENT_LEAVE_FIELD)
 	e4:SetProperty(EFFECT_FLAG_DAMAGE_STEP+EFFECT_FLAG_DELAY)
-	e4:SetCountLimit(1,id)
+	e4:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
+	e4:SetCondition(s.leavecon)
 	e4:SetTarget(s.thtg2)
 	e4:SetOperation(s.thop2)
 	c:RegisterEffect(e4)
@@ -44,7 +45,7 @@ function s.tgtg(e,c)
 	return c:IsLevel(3) and c:IsType(TYPE_PENDULUM)
 end
 function s.con(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.GetTurnPlayer()==tp and Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)<2
+	return Duel.GetTurnPlayer()==tp and Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)<=1
 		and not Duel.IsExistingMatchingCard(nil,tp,LOCATION_ONFIELD,0,1,e:GetHandler())
 end
 function s.filter(c)
@@ -61,6 +62,11 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
 		Duel.SendtoHand(g,nil,REASON_EFFECT)
 		Duel.ConfirmCards(1-tp,g)
 	end
+end
+function s.leavecon(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	return c:IsPreviousPosition(POS_FACEUP) and c:IsPreviousLocation(LOCATION_ONFIELD)
+		and c:IsReason(REASON_EFFECT) and rp==1-tp
 end
 function s.thfilter1(c)
 	return c:IsRitualMonster() and c:IsType(TYPE_PENDULUM) and c:IsAbleToHand()
