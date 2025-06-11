@@ -18,13 +18,13 @@ function s.initial_effect(c)
 	c:RegisterEffect(e0)
 	
 	--Always treated as every attribute
-	local e0=Effect.CreateEffect(c)
-	e0:SetType(EFFECT_TYPE_SINGLE)
-	e0:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-	e0:SetCode(EFFECT_ADD_ATTRIBUTE)
-	e0:SetRange(LOCATION_MZONE+LOCATION_EXTRA)
-	e0:SetValue(ATTRIBUTE_ALL)
-	c:RegisterEffect(e0)
+	local e_attr=Effect.CreateEffect(c)
+	e_attr:SetType(EFFECT_TYPE_SINGLE)
+	e_attr:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e_attr:SetCode(EFFECT_ADD_ATTRIBUTE)
+	e_attr:SetRange(LOCATION_MZONE+LOCATION_EXTRA)
+	e_attr:SetValue(ATTRIBUTE_ALL)
+	c:RegisterEffect(e_attr)
 	
 	--Negate effects when summoned
 	local e1=Effect.CreateEffect(c)
@@ -36,13 +36,20 @@ function s.initial_effect(c)
 	e1:SetTarget(s.negtg)
 	e1:SetOperation(s.negop)
 	c:RegisterEffect(e1)
+	--Store reference to negate effect for destroy condition
+	local e1b=Effect.CreateEffect(c)
+	e1b:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e1b:SetCode(EVENT_SPSUMMON_SUCCESS)
+	e1b:SetCondition(s.negcon)
+	e1b:SetOperation(s.regop)
+	c:RegisterEffect(e1b)
 	
 	--Destroy if negate effect is negated
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,2))
 	e2:SetCategory(CATEGORY_DESTROY)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e2:SetCode(EVENT_CHAINING)
+	e2:SetCode(EVENT_CHAIN_NEGATED)
 	e2:SetRange(LOCATION_MZONE)
 	e2:SetCondition(s.descon)
 	e2:SetTarget(s.destg)
@@ -87,20 +94,30 @@ end
 
 function s.xyztg(e,tp,eg,ep,ev,re,r,rp,chk,c)
 	local g=Duel.GetMatchingGroup(s.xyzfilter,tp,LOCATION_MZONE,0,nil)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_XMATERIAL)
-	local sg=g:Select(tp,2,2,nil)
-	if sg then
-		sg:KeepAlive()
-		e:SetLabelObject(sg)
-		return true
-	else return false end
+	if #g>=2 then
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_XMATERIAL)
+		local sg=g:Select(tp,2,2,nil)
+		if sg then
+			sg:KeepAlive()
+			e:SetLabelObject(sg)
+			return true
+		end
+	end
+	return false
 end
 
 function s.xyzop(e,tp,eg,ep,ev,re,r,rp,c)
 	local g=e:GetLabelObject()
-	c:SetMaterial(g)
-	Duel.Overlay(c,g)
-	g:DeleteGroup()
+	if g then
+		c:SetMaterial(g)
+		Duel.Overlay(c,g)
+		g:DeleteGroup()
+	end
+end
+
+--Register flag for negate effect usage
+function s.regop(e,tp,eg,ep,ev,re,r,rp)
+	e:GetHandler():RegisterFlagEffect(id,RESET_EVENT+RESETS_STANDARD,0,1)
 end
 
 --Negate condition (Xyz Summoned)
@@ -108,7 +125,7 @@ function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 	return e:GetHandler():IsSummonType(SUMMON_TYPE_XYZ)
 end
 
---Negate target
+	--Negate target
 function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsFaceup,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,nil) end
 	local g=Duel.GetMatchingGroup(Card.IsFaceup,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,nil)
@@ -145,14 +162,14 @@ end
 
 --Destroy condition (negate effect was negated)
 function s.descon(e,tp,eg,ep,ev,re,r,rp)
-	return re and re:GetHandler():IsCode(900000012) and rp==1-tp and re:GetDescription()==aux.Stringid(900000012,1)
+	local c=e:GetHandler()
+	return c:GetFlagEffect(id)>0 and rp==1-tp and re and re:GetHandler()==c
 end
 
 --Destroy target
 function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(aux.TRUE,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,1,nil) end
-	local g=Duel.GetMatchingGroup(aux.TRUE,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,nil)
-	Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,1,0,0)
+	Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,0,0,LOCATION_ONFIELD)
 end
 
 --Destroy operation
@@ -222,13 +239,12 @@ function s.clearop(e,tp,eg,ep,ev,re,r,rp)
 		e1:SetValue(1)
 		e1:SetReset(RESET_PHASE+PHASE_END)
 		Duel.RegisterEffect(e1,tp)
-		--Cannot Normal Summon more than 1
+		--Cannot Normal Summon for the rest of the turn
 		local e2=Effect.CreateEffect(e:GetHandler())
 		e2:SetType(EFFECT_TYPE_FIELD)
 		e2:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
-		e2:SetCode(EFFECT_LEFT_SUMMON_COUNT)
+		e2:SetCode(EFFECT_CANNOT_SUMMON)
 		e2:SetTargetRange(1,0)
-		e2:SetValue(1)
 		e2:SetReset(RESET_PHASE+PHASE_END)
 		Duel.RegisterEffect(e2,tp)
 	end
