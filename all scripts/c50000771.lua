@@ -41,6 +41,7 @@ function s.filter(c)
 	return (c:IsFaceup() or c:IsLocation(LOCATION_GRAVE)) and c:IsType(TYPE_MONSTER) and c:IsSetCard(0x71b)
 end
 function s.atkval(e,c)
+	local tp=c:GetControler()
 	local ct=Duel.GetMatchingGroup(s.filter,tp,LOCATION_GRAVE+LOCATION_MZONE,0,nil):GetClassCount(Card.GetCode)
 	return ct*500
 end

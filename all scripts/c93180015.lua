@@ -1,11 +1,12 @@
 --Striking Dragon Dragears
 local s,id=GetID()
 function s.initial_effect(c)
-	-- second attack
+	-- second attack (hard once per turn)
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_MZONE)
+	e1:SetCountLimit(1,id)
 	e1:SetCondition(s.condition)
 	e1:SetCost(s.cost)
 	e1:SetOperation(s.operation)

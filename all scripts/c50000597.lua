@@ -21,6 +21,7 @@ function s.initial_effect(c)
 	e2:SetCountLimit(1,id)
 	e2:SetCondition(s.condition)
 	e2:SetTarget(s.target)
+	e2:SetOperation(s.operation)
 	c:RegisterEffect(e2)
 	e1:SetLabelObject(e2)
 end
@@ -31,7 +32,7 @@ function s.spcon(e,c)
 	if c==nil then return true end
 	local tp=e:GetHandlerPlayer()
 	local rg=Duel.GetMatchingGroup(s.spfilter,tp,LOCATION_MZONE+LOCATION_GRAVE,0,nil)
-	return Duel.GetLocationCount(tp,LOCATION_MZONE)>-3 and #rg>2 and aux.SelectUnselectGroup(rg,e,tp,3,3,aux.ChkfMMZ(1),0)
+	return Duel.GetLocationCount(tp,LOCATION_MZONE)>-3 and #rg>=3 and aux.SelectUnselectGroup(rg,e,tp,3,3,aux.ChkfMMZ(1),0)
 end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,c)
 	local rg=Duel.GetMatchingGroup(s.spfilter,tp,LOCATION_MZONE+LOCATION_GRAVE,0,nil)
@@ -48,16 +49,19 @@ function s.sptg(e,tp,eg,ep,ev,re,r,rp,c)
 end
 function s.spop(e,tp,eg,ep,ev,re,r,rp,c)
 	local g=Group.CreateGroup()
-	for _,id in pairs({e:GetLabel()}) do
-		local card=Duel.GetCardFromCardID(id)
+	for _,cardid in pairs({e:GetLabel()}) do
+		local card=Duel.GetCardFromCardID(cardid)
 		if not card then return end
 		g:AddCard(card)
 	end
 	local lt=g:FilterCount(Card.IsAttribute,nil,ATTRIBUTE_EARTH)
 	local dt=g:FilterCount(Card.IsAttribute,nil,ATTRIBUTE_DARK)
 	local lbl=1
-	if dt==0 then lbl=ATTRIBUTE_EARTH 
-	elseif lt==0 then lbl=ATTRIBUTE_DARK end
+	if dt==0 then 
+		lbl=ATTRIBUTE_EARTH 
+	elseif lt==0 then 
+		lbl=ATTRIBUTE_DARK 
+	end
 	e:GetLabelObject():SetLabel(lbl)
 	Duel.Remove(g,POS_FACEUP,REASON_COST)
 end
@@ -73,9 +77,9 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 		if op==0 then return false end
 		local res=false
 		if op==ATTRIBUTE_EARTH then
-			res=true
+			res=Duel.IsExistingMatchingCard(Card.IsAbleToRemove,tp,LOCATION_GRAVE,LOCATION_GRAVE,1,nil)
 		elseif op==ATTRIBUTE_DARK then
-			res=true
+			res=Duel.IsExistingMatchingCard(aux.TRUE,tp,0,LOCATION_ONFIELD,1,nil)
 		else
 			res=Duel.GetLocationCount(tp,LOCATION_MZONE)>0 and Duel.IsExistingMatchingCard(s.spfilter2,tp,LOCATION_GRAVE,0,1,nil,e,tp)
 		end
@@ -87,25 +91,33 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 		e:SetOperation(nil)
 	elseif op==ATTRIBUTE_EARTH then
 		e:SetCategory(CATEGORY_REMOVE)
-		e:SetOperation(s.tdop)
 		Duel.SetOperationInfo(0,CATEGORY_REMOVE,nil,1,0,LOCATION_GRAVE)
 	elseif op==ATTRIBUTE_DARK then
 		e:SetCategory(CATEGORY_DESTROY)
-		e:SetOperation(s.desop)
-		local g=Duel.GetMatchingGroup(aux.TRUE,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,nil)
-		Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,1,PLAYER_ALL,LOCATION_ONFIELD)
+		local g=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_ONFIELD,nil)
+		Duel.SetOperationInfo(0,CATEGORY_DESTROY,g,1,1-tp,LOCATION_ONFIELD)
 	else
 		e:SetCategory(CATEGORY_SPECIAL_SUMMON)
-		e:SetOperation(s.spop2)
 		Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_GRAVE)
 	end
-	e:SetLabel(0)
+	-- Remove this line as it's incorrect: e:SetLabel(0)
 end
-function s.tdop(e,tp,eg,ep,ev,re,r,rp)
+function s.operation(e,tp,eg,ep,ev,re,r,rp)
+	local op=e:GetLabel()
+	if op==ATTRIBUTE_EARTH then
+		s.remop(e,tp,eg,ep,ev,re,r,rp)
+	elseif op==ATTRIBUTE_DARK then
+		s.desop(e,tp,eg,ep,ev,re,r,rp)
+	else
+		s.spop2(e,tp,eg,ep,ev,re,r,rp)
+	end
+end
+function s.remop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local rg=Duel.GetMatchingGroup(Card.IsAbleToRemove,tp,LOCATION_GRAVE,LOCATION_GRAVE,nil)
 	if #rg>0 then
-		local sg=rg:Select(tp,1,3)
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
+		local sg=rg:Select(tp,1,3,nil)
 		Duel.Remove(sg,POS_FACEUP,REASON_EFFECT)
 	end
 	local e1=Effect.CreateEffect(c)
@@ -118,7 +130,7 @@ end
 function s.desop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-	local g=Duel.SelectMatchingCard(tp,nil,tp,0,LOCATION_ONFIELD,1,2,nil)
+	local g=Duel.SelectMatchingCard(tp,aux.TRUE,tp,0,LOCATION_ONFIELD,1,2,nil)
 	if #g>0 then
 		Duel.Destroy(g,REASON_EFFECT)
 	end
@@ -135,8 +147,7 @@ function s.spop2(e,tp,eg,ep,ev,re,r,rp)
 	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter2),tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
 	if #g>0 then
 		Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
-		local g2=Duel.GetMatchingGroup(aux.FilterFaceupFunction(Card.IsRace,RACE_MACHINE),tp,LOCATION_MZONE,0,nil)
-		local tc=g2:GetFirst()
+		local g2=Duel.GetMatchingGroup(aux.FaceupFilter(Card.IsRace,RACE_MACHINE),tp,LOCATION_MZONE,0,nil)
 		for tc in aux.Next(g2) do
 			local e1=Effect.CreateEffect(e:GetHandler())
 			e1:SetType(EFFECT_TYPE_SINGLE)

@@ -43,7 +43,7 @@ function s.operationvaluedef(c)
 end
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	local g=Duel.GetMatchingGroup(aux.FilterFaceupFunction(Card.IsReleasable),tp,LOCATION_MZONE,LOCATION_MZONE,nil)
+	local g=Duel.GetMatchingGroup(Auxiliary.FaceupFilter(Card.IsReleasable),tp,LOCATION_MZONE,LOCATION_MZONE,nil)
 	if Duel.Release(g,REASON_EFFECT)==0 then return end
 	local og=Duel.GetOperatedGroup()
 	if Duel.GetMZoneCount(1-tp,nil,tp)>0 then

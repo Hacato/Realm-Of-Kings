@@ -2,7 +2,7 @@
 local s,id=GetID()
 function s.initial_effect(c)
 	--xyz summon
-	Xyz.AddProcedure(c,nil,2,3,nil,nil,99)
+	Xyz.AddProcedure(c,nil,2,3,nil,nil,nil,nil,Xyz.InfiniteMats)
 	c:EnableReviveLimit()
 	c:SetUniqueOnField(1,0,id)
 	--atk/def

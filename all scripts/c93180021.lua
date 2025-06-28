@@ -45,7 +45,10 @@ function s.initial_effect(c)
 	c:RegisterEffect(e4)
 end
 function s.condition(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.GetLP(tp)<Duel.GetLP(1-tp)
+	local c=e:GetHandler()
+	if not c:IsLocation(LOCATION_MZONE) then return false end
+	local controller=c:GetControler()
+	return Duel.GetLP(controller)<Duel.GetLP(1-controller)
 end
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.CheckLPCost(tp,1000) end

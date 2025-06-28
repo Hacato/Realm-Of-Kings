@@ -37,7 +37,7 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 function s.condition(e,tp,eg,ep,ev,re,r,rp)
-	return tp~=Duel.GetTurnPlayer() and Duel.IsExistingMatchingCard(aux.FilterFaceupFunction(Card.IsRace,RACE_BEAST),e:GetHandler():GetControler(),LOCATION_MZONE,0,1,nil)
+	return tp~=Duel.GetTurnPlayer() and Duel.IsExistingMatchingCard(Auxiliary.FaceupFilter(Card.IsRace,RACE_BEAST),e:GetHandler():GetControler(),LOCATION_MZONE,0,1,nil)
 end
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	if not e:GetHandler():IsRelateToEffect(e) then return end

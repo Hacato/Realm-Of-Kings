@@ -1,13 +1,13 @@
 -- Bejita - Sayajin Prince
 local s,id=GetID()
 function s.initial_effect(c)
-	aux.EnableGeminiAttribute(c)
+	Gemini.AddProcedure(c)
 	--set
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_MZONE)
 	e1:SetCountLimit(1)
-	e1:SetCondition(aux.IsGeminiState)
+	e1:SetCondition(Gemini.EffectStatusCondition)
 	e1:SetCost(s.negcost)
 	e1:SetTarget(s.settg)
 	e1:SetOperation(s.setop)

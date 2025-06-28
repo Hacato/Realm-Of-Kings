@@ -3,8 +3,10 @@ local s,id=GetID()
 function s.initial_effect(c)
 	c:EnableReviveLimit()
 	Pendulum.AddProcedure(c,false)
-	Synchro.AddProcedure(c,aux.FilterBoolFunctionEx(Card.IsType,TYPE_SYNCHRO),1,1,Synchro.NonTunerEx(s.matfilter),1,99)
-	--immune
+	-- Corrected Synchro procedure: 1 Synchro Tuner + 1+ non-Tuner Pendulum Synchro monsters
+	Synchro.AddProcedure(c,s.tunerfilter,1,1,s.nontunerfilter,1,99)
+	
+	--Pendulum Effect: Pendulum Synchro cards you control are unaffected by opponent's card effects
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_FIELD)
 	e1:SetCode(EFFECT_IMMUNE_EFFECT)
@@ -13,7 +15,8 @@ function s.initial_effect(c)
 	e1:SetTarget(s.datg)
 	e1:SetValue(s.efilter)
 	c:RegisterEffect(e1)
-	--place
+	
+	--Monster Effect 1: Place in Pendulum Zone when Synchro Summoned
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,0))
 	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
@@ -23,9 +26,10 @@ function s.initial_effect(c)
 	e2:SetTarget(s.tftg)
 	e2:SetOperation(s.tfop)
 	c:RegisterEffect(e2)
-	--battle restriction
+	
+	--Monster Effect 2: Destroy all opponent's cards at Battle Phase start
 	local e3=Effect.CreateEffect(c)
-	e3:SetDescription(aux.Stringid(id,0))
+	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_DESTROY)
 	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
 	e3:SetCode(EVENT_PHASE+PHASE_BATTLE_START)
@@ -34,9 +38,10 @@ function s.initial_effect(c)
 	e3:SetTarget(s.target)
 	e3:SetOperation(s.activate)
 	c:RegisterEffect(e3)
-	--Special Summon
+	
+	--Monster Effect 3: Special Summon when leaving field
 	local e4=Effect.CreateEffect(c)
-	e4:SetDescription(aux.Stringid(id,1))
+	e4:SetDescription(aux.Stringid(id,2))
 	e4:SetType(EFFECT_TYPE_TRIGGER_O+EFFECT_TYPE_SINGLE)
 	e4:SetProperty(EFFECT_FLAG_DAMAGE_STEP+EFFECT_FLAG_DELAY)
 	e4:SetCategory(CATEGORY_SPECIAL_SUMMON)
@@ -46,15 +51,24 @@ function s.initial_effect(c)
 	e4:SetOperation(s.sumop)
 	c:RegisterEffect(e4)
 end
-function s.matfilter(c,val,scard,sumtype,tp)
-	return c:IsType(TYPE_SYNCHRO,scard,sumtype,tp) and c:IsType(TYPE_PENDULUM,scard,sumtype,tp)
+
+-- Synchro material filters
+function s.tunerfilter(c,scard,sumtype,tp)
+	return c:IsType(TYPE_SYNCHRO,scard,sumtype,tp) and c:IsType(TYPE_TUNER,scard,sumtype,tp)
 end
+function s.nontunerfilter(c,scard,sumtype,tp)
+	return c:IsType(TYPE_PENDULUM,scard,sumtype,tp) and c:IsType(TYPE_SYNCHRO,scard,sumtype,tp) and not c:IsType(TYPE_TUNER,scard,sumtype,tp)
+end
+
+-- Pendulum Effect functions
 function s.datg(e,c)
 	return c:IsType(TYPE_PENDULUM) and c:IsType(TYPE_SYNCHRO)
 end
 function s.efilter(e,te)
 	return te:GetOwnerPlayer()~=e:GetHandlerPlayer()
 end
+
+-- Monster Effect 1: Place in Pendulum Zone
 function s.descon(e,tp,eg,ep,ev,re,r,rp)
 	return e:GetHandler():IsSummonType(SUMMON_TYPE_SYNCHRO)
 end
@@ -74,15 +88,19 @@ function s.tfop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.MoveToField(g:GetFirst(),tp,tp,LOCATION_PZONE,POS_FACEUP,true)
 	end
 end
+
+-- Monster Effect 2: Destroy all opponent's cards
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(aux.TRUE,tp,0,LOCATION_MZONE,1,nil) end
-	local sg=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_MZONE,nil)
+	if chk==0 then return Duel.IsExistingMatchingCard(aux.TRUE,tp,0,LOCATION_ONFIELD,1,nil) end
+	local sg=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_ONFIELD,nil)
 	Duel.SetOperationInfo(0,CATEGORY_DESTROY,sg,#sg,0,0)
 end
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
-	local sg=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_MZONE,nil)
+	local sg=Duel.GetMatchingGroup(aux.TRUE,tp,0,LOCATION_ONFIELD,nil)
 	Duel.Destroy(sg,REASON_EFFECT)
 end
+
+-- Monster Effect 3: Special Summon when leaving field
 function s.sumcon(e,tp,eg,ep,ev,re,r,rp)
 	return e:GetHandler():IsPreviousPosition(POS_FACEUP) and e:GetHandler():IsPreviousLocation(LOCATION_MZONE)
 end

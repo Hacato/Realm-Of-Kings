@@ -1,6 +1,7 @@
 --Turbo Track
 local s,id=GetID()
 function s.initial_effect(c)
+	c:EnableCounterPermit(0x1148)
 	--activate
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
@@ -29,10 +30,11 @@ function s.initial_effect(c)
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,0))
 	e4:SetCategory(CATEGORY_COUNTER)
-	e4:SetType(EFFECT_TYPE_TRIGGER_F+EFFECT_TYPE_FIELD)
-	e4:SetCode(EVENT_PHASE+PHASE_STANDBY)
+	e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e4:SetCode(EVENT_PHASE|PHASE_STANDBY)
+	e4:SetRange(LOCATION_FZONE)
 	e4:SetCountLimit(1)
-	e4:SetRange(LOCATION_MZONE)
+	e4:SetCondition(s.ctcon)
 	e4:SetOperation(s.ctop)
 	c:RegisterEffect(e4)
 	--Send to the graveyard
@@ -50,7 +52,7 @@ function s.indtg(e,c)
 	return c:IsSetCard(0x710)
 end
 function s.atkcon1(e)
-	return Duel.IsExistingMatchingCard(aux.FilterFaceupFunction(Card.IsSetCard,0x1710),e:GetHandlerPlayer(),LOCATION_MZONE,0,1,nil)
+	return Duel.IsExistingMatchingCard(Auxiliary.FaceupFilter(Card.IsSetCard,0x1710),e:GetHandlerPlayer(),LOCATION_MZONE,0,1,nil)
 end
 function s.value(e,re,dam,r,rp,rc)
 	if (r&REASON_BATTLE)~=0 then
@@ -59,9 +61,11 @@ function s.value(e,re,dam,r,rp,rc)
 		return dam
 	end
 end
+function s.ctcon(e,tp,eg,ep,ev,re,r,rp)
+	return true
+end
 function s.ctop(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	c:AddCounter(0x1148,1)
+	e:GetHandler():AddCounter(0x1148,1)
 end
 function s.gycon(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
@@ -75,6 +79,6 @@ function s.gyop(e,tp,eg,ep,ev,re,r,rp)
 	if #g>0 then
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOFIELD)
 		local tc=g:Select(tp,1,1,nil):GetFirst()
-		aux.PlayFieldSpell(tc,e,tp,eg,ep,ev,re,r,rp)
+		Duel.ActivateFieldSpell(tc,e,tp,eg,ep,ev,re,r,rp)
 	end
 end
