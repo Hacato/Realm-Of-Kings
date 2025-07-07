@@ -13,7 +13,7 @@ function s.initial_effect(c)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
 end
-function s.nefffilter(c)
+function s.nefffilter(c,tp)
 	return c:IsSetCard(0x702)
 		and Duel.IsExistingMatchingCard(s.filter2,tp,LOCATION_DECK,0,1,nil,c:GetLevel())
 end
@@ -22,15 +22,15 @@ function s.filter2(c,lvl)
 end
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()
-	if chk==0 then return Duel.CheckReleaseGroupCost(tp,s.nefffilter,1,false,nil,nil) end
-	local sg=Duel.SelectReleaseGroupCost(tp,s.nefffilter,1,1,false,nil,nil)
+	if chk==0 then return Duel.CheckReleaseGroupCost(tp,s.nefffilter,1,false,nil,nil,tp) end
+	local sg=Duel.SelectReleaseGroupCost(tp,s.nefffilter,1,1,false,nil,nil,tp)
 	local tc=sg:GetFirst()
 	e:SetLabel(tc:GetLevel())
 	Duel.Release(sg,REASON_COST)
 end
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
-	Duel.SetOperationInfo(0,CATEGORY_TOHAND,g,1,0,0)
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 end
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)

@@ -17,7 +17,7 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.IsExistingMatchingCard(aux.FilterFaceupFunction(Card.IsSetCard,0x719),tp,LOCATION_MZONE,0,1,e:GetHandler())
+	return Duel.IsExistingMatchingCard(Auxiliary.FaceupFilter(Card.IsSetCard,0x719),tp,LOCATION_MZONE,0,1,e:GetHandler())
 end
 function s.filter(c)
 	return c:GetType()==TYPE_TRAP and c:IsSSetable()

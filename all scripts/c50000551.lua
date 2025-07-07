@@ -28,18 +28,30 @@ function s.initial_effect(c)
 	e3:SetTarget(s.postg)
 	e3:SetOperation(s.posop)
 	c:RegisterEffect(e3)
-	--return
+	--Return to Extra Deck and Special Summon
 	local e4=Effect.CreateEffect(c)
-	e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e4:SetCode(EVENT_SPSUMMON_SUCCESS)
-	e4:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-	e4:SetCondition(s.regcon)
-	e4:SetOperation(s.retreg)
+	e4:SetDescription(aux.Stringid(id,2))
+	e4:SetCategory(CATEGORY_TODECK+CATEGORY_SPECIAL_SUMMON)
+	e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e4:SetCode(EVENT_PHASE+PHASE_END)
+	e4:SetRange(LOCATION_MZONE)
+	e4:SetCountLimit(1)
+	e4:SetCondition(s.retcon)
+	e4:SetTarget(s.rettg)
+	e4:SetOperation(s.retop)
 	c:RegisterEffect(e4)
-	local e5=e4:Clone()
-	e5:SetCondition(aux.TRUE)
-	e5:SetCode(EVENT_FLIP)
+	--Register when Xyz Summoned or flipped
+	local e5=Effect.CreateEffect(c)
+	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e5:SetCode(EVENT_SPSUMMON_SUCCESS)
+	e5:SetCondition(s.regcon)
+	e5:SetOperation(s.regop)
 	c:RegisterEffect(e5)
+	local e6=Effect.CreateEffect(c)
+	e6:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e6:SetCode(EVENT_FLIP)
+	e6:SetOperation(s.regop)
+	c:RegisterEffect(e6)
 end
 function s.atkcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return e:GetHandler():CheckRemoveOverlayCard(tp,1,REASON_COST) end
@@ -52,12 +64,12 @@ function s.postg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.posfilter,tp,0,LOCATION_MZONE,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_POSITION,nil,1,0,0)
 end
-function s.posop(e,tp,eg,ep,ev,re,r,rp,chk)
+function s.posop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_POSCHANGE)
 	local tc=Duel.SelectMatchingCard(tp,s.posfilter,tp,0,LOCATION_MZONE,1,1,nil):GetFirst()
-	if tc then
-		Duel.ChangePosition(tc,POS_FACEUP_DEFENSE)
-		local e1=Effect.CreateEffect(e:GetHandler())
+	if tc and Duel.ChangePosition(tc,POS_FACEUP_DEFENSE)~=0 then
+		local c=e:GetHandler()
+		local e1=Effect.CreateEffect(c)
 		e1:SetType(EFFECT_TYPE_SINGLE)
 		e1:SetCode(EFFECT_CANNOT_CHANGE_POSITION)
 		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
@@ -65,48 +77,32 @@ function s.posop(e,tp,eg,ep,ev,re,r,rp,chk)
 	end
 end
 function s.regcon(e,tp,eg,ep,ev,re,r,rp)
-	return (e:GetHandler():GetSummonType()&SUMMON_TYPE_XYZ)==SUMMON_TYPE_XYZ
+	return e:GetHandler():IsSummonType(SUMMON_TYPE_XYZ)
 end
-function s.retreg(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	local e1=Effect.CreateEffect(c)
-	e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
-	e1:SetDescription(1104)
-	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SPECIAL_SUMMON+CATEGORY_TOKEN)
-	e1:SetCode(EVENT_PHASE+PHASE_END)
-	e1:SetRange(LOCATION_MZONE)
-	e1:SetCountLimit(1)
-	e1:SetReset(RESET_EVENT|RESETS_STANDARD&~RESET_TEMP_REMOVE|RESET_PHASE|PHASE_END)
-	e1:SetCondition(aux.SpiritReturnCondition)
-	e1:SetTarget(s.rettg)
-	e1:SetOperation(s.retop)
-	c:RegisterEffect(e1)
-	local e2=e1:Clone()
-	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	c:RegisterEffect(e2)
+function s.regop(e,tp,eg,ep,ev,re,r,rp)
+	e:GetHandler():RegisterFlagEffect(id,RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END,0,1)
+end
+function s.retcon(e,tp,eg,ep,ev,re,r,rp)
+	return e:GetHandler():GetFlagEffect(id)>0
 end
 function s.spfilter(c,e,tp)
 	return c:IsType(TYPE_SPIRIT) and c:IsLevel(4) and c:IsCanBeSpecialSummoned(e,0,tp,true,false)
 end
 function s.rettg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then
-		if e:IsHasType(EFFECT_TYPE_TRIGGER_F) then
-			return true
-		else
-			return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-				and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp)
-		end
+	local c=e:GetHandler()
+	if chk==0 then return true end
+	Duel.SetOperationInfo(0,CATEGORY_TODECK,c,1,0,0)
+	if Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp) then
+		Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_GRAVE)
 	end
-	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,0)
 end
 function s.retop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	if c:IsRelateToEffect(e) and c:IsFaceup() and Duel.SendtoDeck(c,nil,2,REASON_EFFECT)~=0 then
-		Duel.BreakEffect()
+	if c:IsRelateToEffect(e) and c:IsFaceup() and Duel.SendtoDeck(c,nil,SEQ_DECKTOP,REASON_EFFECT)~=0 then
 		local tg=Duel.GetMatchingGroup(s.spfilter,tp,LOCATION_GRAVE,0,nil,e,tp)
 		if #tg>0 and Duel.GetLocationCount(tp,LOCATION_MZONE)>0 then
 			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-			local tc=tg:Select(tp,1,1,nil)
+			local tc=tg:Select(tp,1,1,nil):GetFirst()
 			Duel.SpecialSummon(tc,0,tp,tp,true,false,POS_FACEUP)
 		end
 	end

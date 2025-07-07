@@ -23,10 +23,25 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 		and Duel.IsExistingMatchingCard(s.filter,tp,LOCATION_HAND+LOCATION_DECK,0,3,nil,e,tp) end
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,3,tp,LOCATION_HAND+LOCATION_DECK)
 end
+function s.splimit(e,c)
+	return c:IsLocation(LOCATION_EXTRA) and not (c:IsRace(RACE_CYBERSE) and c:IsAttribute(ATTRIBUTE_LIGHT) and c:IsType(TYPE_SYNCHRO))
+end
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
+	local fid=c:GetFieldID()
 	if Duel.IsPlayerAffectedByEffect(tp,CARD_BLUEEYES_SPIRIT) then return end
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=2 then return end
+	
+	--Restrict Extra Deck summons except LIGHT Cyberse Synchros
+	local e4=Effect.CreateEffect(c)
+	e4:SetType(EFFECT_TYPE_FIELD)
+	e4:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
+	e4:SetCode(EFFECT_CANNOT_SPECIAL_SUMMON)
+	e4:SetTargetRange(1,0)
+	e4:SetTarget(s.splimit)
+	e4:SetReset(RESET_PHASE+PHASE_END)
+	Duel.RegisterEffect(e4,tp)
+	
 	local g=Duel.GetMatchingGroup(s.filter,tp,LOCATION_HAND+LOCATION_DECK,0,nil,e,tp)
 	if #g>=3 then
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)

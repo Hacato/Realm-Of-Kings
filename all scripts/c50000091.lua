@@ -73,7 +73,7 @@ function s.checkop(e,tp)
 	end
 end
 function s.penfilter(c,e,tp,lscale,rscale)
-	return c:IsSetCard(0x702) and c:IsLevelAbove(7) and aux.PConditionFilter(c,e,tp,lscale,rscale)
+	return c:IsSetCard(0x702) and c:IsLevelAbove(7) and Pendulum.Filter(c,e,tp,lscale,rscale)
 end
 function s.pencon1(e,c,og)
 	if c==nil then return true end
