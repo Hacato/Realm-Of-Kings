@@ -15,6 +15,8 @@ function s.initial_effect(c)
     e1:SetValue(ATTRIBUTE_EARTH+ATTRIBUTE_WATER+ATTRIBUTE_FIRE+ATTRIBUTE_WIND+ATTRIBUTE_LIGHT+ATTRIBUTE_DARK+ATTRIBUTE_DIVINE)
     c:RegisterEffect(e1)
     
+
+    
     --Banish opponent's hand and GY if summoned using opponent's monster
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,0))
@@ -52,11 +54,17 @@ function s.initial_effect(c)
     c:RegisterEffect(e4)
 end
 
---Check if summoned using opponent's monster
+--Check if summoned using opponent's monster (simplified approach)
 function s.rmcon(e,tp,eg,ep,ev,re,r,rp)
     if not e:GetHandler():IsSummonType(SUMMON_TYPE_FUSION) then return false end
     local mg=e:GetHandler():GetMaterial()
-    return mg and mg:IsExists(Card.IsControler,1,nil,1-tp)
+    if not mg then return false end
+    for tc in aux.Next(mg) do
+        if tc:GetPreviousControler()==1-tp then
+            return true
+        end
+    end
+    return false
 end
 
 --Banish opponent's hand and GY
