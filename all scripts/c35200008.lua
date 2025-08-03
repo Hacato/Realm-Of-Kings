@@ -1,7 +1,7 @@
 --- Masaki the Red-Eyes Swordsman
 local s,id=GetID()
 function s.initial_effect(c)
-	aux.EnableGeminiAttribute(c)
+	Gemini.AddProcedure(c)
 	Pendulum.AddProcedure(c)
 	--lv change
 	local e1=Effect.CreateEffect(c)
@@ -19,7 +19,7 @@ function s.initial_effect(c)
 	e2:SetCategory(CATEGORY_DESTROY)
 	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_BATTLE_CONFIRM)
-	e2:SetCondition(aux.IsGeminiState)
+	e2:SetCondition(Gemini.EffectStatusCondition)
 	e2:SetTarget(s.targ)
 	e2:SetOperation(s.op)
 	c:RegisterEffect(e2)

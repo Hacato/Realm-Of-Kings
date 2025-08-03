@@ -1,6 +1,8 @@
 -- Bending Booze Party
 local s,id=GetID()
 function s.initial_effect(c)
+	--Cannot control more than 1
+	c:SetUniqueOnField(1,0,id)
 	--Negate
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,1))
@@ -48,7 +50,6 @@ function s.disop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Destroy(eg,REASON_EFFECT)
 	end
 end
-
 function s.descon(e)
 	return e:GetHandler():GetCounter(0x1999)>=3
 end

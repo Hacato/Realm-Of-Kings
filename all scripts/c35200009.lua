@@ -1,7 +1,7 @@
 --- Red-Eyes Garoozis
 local s,id=GetID()
 function s.initial_effect(c)
-	aux.EnableGeminiAttribute(c)
+	Gemini.AddProcedure(c)
 	Pendulum.AddProcedure(c)
 	--special summon
 	local e1=Effect.CreateEffect(c)
@@ -22,7 +22,7 @@ function s.initial_effect(c)
 	e2:SetType(EFFECT_TYPE_IGNITION)
 	e2:SetRange(LOCATION_MZONE)
 	e2:SetCountLimit(1)
-	e2:SetCondition(aux.IsGeminiState)
+	e2:SetCondition(Gemini.EffectStatusCondition)
 	e2:SetOperation(s.lvop)
 	c:RegisterEffect(e2)
 end

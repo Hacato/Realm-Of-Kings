@@ -1,8 +1,9 @@
---- Red-Eyes Combat Warrior
+-- Red-Eyes Combat Warrior
 local s,id=GetID()
 function s.initial_effect(c)
-	--equip
+	-- Equip from hand
 	local e1=Effect.CreateEffect(c)
+	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_EQUIP)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetProperty(EFFECT_FLAG_CARD_TARGET)
@@ -11,89 +12,105 @@ function s.initial_effect(c)
 	e1:SetTarget(s.eqtg)
 	e1:SetOperation(s.eqop)
 	c:RegisterEffect(e1)
-	--Actlimit
+	
+	-- Equip limit
 	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-	e2:SetRange(LOCATION_SZONE)
-	e2:SetCode(EVENT_ATTACK_ANNOUNCE)
-	e2:SetOperation(s.lmop)
+	e2:SetType(EFFECT_TYPE_SINGLE)
+	e2:SetCode(EFFECT_EQUIP_LIMIT)
+	e2:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+	e2:SetValue(s.eqlimit)
 	c:RegisterEffect(e2)
-	--Normal Summon
+	
+	-- Cannot activate monster effects when equipped monster attacks
 	local e3=Effect.CreateEffect(c)
-	e3:SetDescription(aux.Stringid(id,0))
-	e3:SetCategory(CATEGORY_SUMMON)
-	e3:SetType(EFFECT_TYPE_QUICK_O)
-	e3:SetRange(LOCATION_GRAVE)
-	e3:SetCode(EVENT_FREE_CHAIN)
-	e3:SetCountLimit(1,id+100)
-	e3:SetCost(aux.bfgcost)
-	e3:SetTarget(s.actg)
-	e3:SetOperation(s.acop)
+	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	e3:SetRange(LOCATION_SZONE)
+	e3:SetCode(EVENT_ATTACK_ANNOUNCE)
+	e3:SetOperation(s.atkop)
 	c:RegisterEffect(e3)
+	
+	-- Quick Effect: Banish to Normal Summon
+	local e4=Effect.CreateEffect(c)
+	e4:SetDescription(aux.Stringid(id,1))
+	e4:SetCategory(CATEGORY_SUMMON)
+	e4:SetType(EFFECT_TYPE_QUICK_O)
+	e4:SetRange(LOCATION_GRAVE)
+	e4:SetCode(EVENT_FREE_CHAIN)
+	e4:SetCountLimit(1,{id,1})
+	e4:SetCost(aux.bfgcost)
+	e4:SetTarget(s.sumtg)
+	e4:SetOperation(s.sumop)
+	c:RegisterEffect(e4)
 end
-function s.filter(c)
+
+-- Filter for Red-Eyes monsters
+function s.eqfilter(c)
 	return c:IsFaceup() and c:IsSetCard(0x3b)
 end
+
+-- Equip target
 function s.eqtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(tp) and s.filter(chkc) end
+	if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(tp) and s.eqfilter(chkc) end
 	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0
-		and Duel.IsExistingTarget(s.filter,tp,LOCATION_MZONE,0,1,e:GetHandler()) end
+		and Duel.IsExistingTarget(s.eqfilter,tp,LOCATION_MZONE,0,1,nil) end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_EQUIP)
-	Duel.SelectTarget(tp,s.filter,tp,LOCATION_MZONE,0,1,1,e:GetHandler())
+	Duel.SelectTarget(tp,s.eqfilter,tp,LOCATION_MZONE,0,1,1,nil)
 	Duel.SetOperationInfo(0,CATEGORY_EQUIP,e:GetHandler(),1,0,0)
 end
+
+-- Equip operation
 function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	if not c:IsRelateToEffect(e) then return end
-	if c:IsLocation(LOCATION_MZONE) and c:IsFacedown() then return end
 	local tc=Duel.GetFirstTarget()
-	if Duel.GetLocationCount(tp,LOCATION_SZONE)<=0 or tc:GetControler()~=tp or tc:IsFacedown() or not tc:IsRelateToEffect(e) then
-		Duel.SendtoGrave(c,REASON_EFFECT)
-		return
+	if c:IsRelateToEffect(e) and tc and tc:IsRelateToEffect(e) and tc:IsFaceup() then
+		Duel.Equip(tp,c,tc)
 	end
-	Duel.Equip(tp,c,tc,true)
-	local e1=Effect.CreateEffect(c)
-	e1:SetType(EFFECT_TYPE_SINGLE)
-	e1:SetCode(EFFECT_EQUIP_LIMIT)
-	e1:SetReset(RESET_EVENT+0x1fe0000)
-	e1:SetLabelObject(tc)
-	e1:SetValue(s.eqlimit)
-	c:RegisterEffect(e1)
 end
+
+-- Equip limit
 function s.eqlimit(e,c)
-	return c==e:GetLabelObject()
+	return c:IsSetCard(0x3b)
 end
-function s.lmop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.GetAttacker()~=e:GetHandler():GetEquipTarget() then return end
-	local e1=Effect.CreateEffect(e:GetHandler())
-	e1:SetType(EFFECT_TYPE_FIELD)
-	e1:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
-	e1:SetCode(EFFECT_CANNOT_ACTIVATE)
-	e1:SetTargetRange(0,1)
-	e1:SetValue(s.aclimit)
-	e1:SetReset(RESET_PHASE+PHASE_DAMAGE)
-	Duel.RegisterEffect(e1,tp)
+
+-- Attack restriction operation
+function s.atkop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	local tc=c:GetEquipTarget()
+	if tc and Duel.GetAttacker()==tc then
+		-- Opponent cannot activate monster effects until end of Damage Step
+		local e1=Effect.CreateEffect(c)
+		e1:SetType(EFFECT_TYPE_FIELD)
+		e1:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
+		e1:SetCode(EFFECT_CANNOT_ACTIVATE)
+		e1:SetTargetRange(0,1)
+		e1:SetValue(s.aclimit)
+		e1:SetReset(RESET_PHASE+PHASE_DAMAGE)
+		Duel.RegisterEffect(e1,tp)
+	end
 end
+
+-- Activation limit for monster effects
 function s.aclimit(e,re,tp)
 	return re:GetHandler():IsType(TYPE_MONSTER)
 end
-function s.sumfilter(c)
+
+-- Filter for Normal Summonable Red-Eyes monsters
+function s.nsfilter(c)
 	return c:IsSetCard(0x3b) and c:IsSummonable(true,nil)
 end
-function s.actg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.sumfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,nil) end
+
+-- Normal Summon target
+function s.sumtg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.IsExistingMatchingCard(s.nsfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_SUMMON,nil,1,0,0)
 end
-function s.acop(e,tp,eg,ep,ev,re,r,rp)
+
+-- Normal Summon operation
+function s.sumop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SUMMON)
-	local g=Duel.SelectMatchingCard(tp,s.sumfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,1,nil)
+	local g=Duel.SelectMatchingCard(tp,s.nsfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,1,nil)
 	local tc=g:GetFirst()
-	local check=false
-	if tc and not tc:IsLocation(LOCATION_MZONE) then
+	if tc then
 		Duel.Summon(tp,tc,true,nil)
-	elseif tc then
-		Duel.RaiseEvent(e:GetHandler(),EVENT_SUMMON,e,r,rp,ep,ev)
-		tc:EnableDualState()
-		Duel.RaiseEvent(e:GetHandler(),EVENT_SUMMON_SUCCESS,e,r,rp,ep,ev)
 	end
 end

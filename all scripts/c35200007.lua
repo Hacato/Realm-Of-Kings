@@ -1,14 +1,15 @@
 --- Red-Eyes Raider of Axe
 local s,id=GetID()
 function s.initial_effect(c)
-	aux.EnableGeminiAttribute(c)
+	--gemini procedure
+	Gemini.AddProcedure(c)
 	--fusion
 	local e1=Effect.CreateEffect(c)
 	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_MZONE)
 	e1:SetCountLimit(1)
-	e1:SetCondition(aux.IsGeminiState)
+	e1:SetCondition(Gemini.EffectStatusCondition)
 	e1:SetTarget(s.target)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
@@ -20,7 +21,7 @@ function s.filter1(c,e)
 	return not c:IsImmuneToEffect(e)
 end
 function s.filter2(c,e,tp,m,f)
-	return c:IsType(TYPE_FUSION) and aux.IsMaterialListSetCard(c,0x3b) and (not f or f(c))
+	return c:IsType(TYPE_FUSION) and (c:IsSetCard(0x3b) or aux.IsMaterialListCode(c,CARD_REDEYES_B_DRAGON)) and (not f or f(c))
 		and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_FUSION,tp,false,false) and c:CheckFusionMaterial(m,nil,tp)
 end
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)

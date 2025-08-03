@@ -26,15 +26,14 @@ function s.initial_effect(c)
 	e3:SetOperation(s.repop)
 	c:RegisterEffect(e3)
 end
-
 function s.desfilter(c,g,mc)
 	return g:IsContains(c) or c==mc
 end
 function s.val(e,c)
+	local tp = e:GetHandlerPlayer()  -- Fixed: Get the controller of the spell card
 	local cg=c:GetColumnGroup()
 	return 300*Duel.GetMatchingGroupCount(s.desfilter,tp,LOCATION_ONFIELD,LOCATION_ONFIELD,nil,cg,c)
 end
-
 function s.repfilter(c,tp)
 	return c:IsFaceup() and c:IsSetCard(0x70b) and c:IsControler(tp) and c:IsLocation(LOCATION_MZONE) 
 		and not c:IsReason(REASON_REPLACE) and c:GetReasonPlayer()==1-tp
