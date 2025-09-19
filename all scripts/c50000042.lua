@@ -1,156 +1,149 @@
 -- Harmony Element of Kindness
 local s,id=GetID()
 function s.initial_effect(c)
-	--Activate
+	-- Activate: 2 different possible effects
 	local e1=Effect.CreateEffect(c)
-	e1:SetCategory(CATEGORY_SPECIAL_SUMMON)
-	e1:SetProperty(EFFECT_FLAG_CARD_TARGET)
+	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_RECOVER)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
 	e1:SetCode(EVENT_FREE_CHAIN)
 	e1:SetCountLimit(1,id)
-	e1:SetCondition(s.notcon)
 	e1:SetTarget(s.target)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
+	-- GY effect: recover LP
 	local e2=Effect.CreateEffect(c)
-	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
-	e2:SetType(EFFECT_TYPE_ACTIVATE)
-	e2:SetCode(EVENT_FREE_CHAIN)
-	e2:SetCountLimit(1,id)
-	e2:SetCondition(s.con)
-	e2:SetTarget(s.sptg)
-	e2:SetOperation(s.spop)
+	e2:SetCategory(CATEGORY_RECOVER)
+	e2:SetProperty(EFFECT_FLAG_CARD_TARGET)
+	e2:SetType(EFFECT_TYPE_IGNITION)
+	e2:SetRange(LOCATION_GRAVE)
+	e2:SetCountLimit(1,id+100)
+	e2:SetCost(aux.bfgcost)
+	e2:SetTarget(s.rectg)
+	e2:SetOperation(s.recop)
 	c:RegisterEffect(e2)
-	--destroy
-	local e3=Effect.CreateEffect(c)
-	e3:SetCategory(CATEGORY_RECOVER)
-	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
-	e3:SetType(EFFECT_TYPE_IGNITION)
-	e3:SetCountLimit(1,id+100)
-	e3:SetRange(LOCATION_GRAVE)
-	e3:SetCost(aux.bfgcost)
-	e3:SetTarget(s.tdtg)
-	e3:SetOperation(s.tdop)
-	c:RegisterEffect(e3)
 end
-function s.notcon(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.GetMatchingGroupCount(Card.IsType,tp,LOCATION_GRAVE,0,nil,TYPE_SPELL)<5
+
+-- condition: spell count in GY
+function s.spellcount(tp)
+	return Duel.GetMatchingGroupCount(Card.IsType,tp,LOCATION_GRAVE,0,nil,TYPE_SPELL)
 end
-function s.con(e,tp,eg,ep,ev,re,r,rp)
-	return Duel.GetMatchingGroupCount(Card.IsType,tp,LOCATION_GRAVE,0,nil,TYPE_SPELL)>=5
+
+-- GY monster filter for first effect
+function s.lvfilter(c,e,tp)
+	return c:GetLevel()>0 and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
 end
-function s.filter(c,e,tp)
-	local lv=c:GetLevel()
-	local mg=Duel.GetMatchingGroup(s.filter2,tp,LOCATION_GRAVE,0,nil,e,tp,lv)
-	return lv>0 and c:IsCanBeEffectTarget(e) and c:IsCanBeSpecialSummoned(e,0,tp,false,false) and mg:GetCount()>0
+
+-- Extra Deck filter for XYZ summon
+function s.xyzfilter(c,mg)
+	return c:IsXyzSummonable(nil,mg,2,2)
 end
-function s.filter2(c,e,tp,lvl)
-	local lv=c:GetLevel()
-	local mg=Duel.GetMatchingGroup(s.filter3,tp,LOCATION_EXTRA,0,nil,e,tp,7)
-	return lv>0 and c:GetLevel()==lvl and c:IsCanBeEffectTarget(e) and c:IsCanBeSpecialSummoned(e,0,tp,false,false) and mg:GetCount()>0
-end
-function s.filter3(c,e,tp,rk)
-	return not c:IsFaceup() and c:GetRank()==rk
-end
-function s.xyzfilter(c)
-	return c:IsType(TYPE_XYZ) and not c:IsFaceup()
-end
-function s.mfilter1(c,mg,exg)
-	return mg:IsExists(s.mfilter2,1,c,c,exg,c:GetLevel())
-end
-function s.mfilter2(c,mc,exg,lvl)
-	return c:GetLevel()==lvl and exg:IsExists(s.mxyzfilter,1,c,7)
-end
-function s.mxyzfilter(c,rk)
-	return c:GetRank()==rk
-end
-function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return false end
-	local mg=Duel.GetMatchingGroup(s.filter,tp,LOCATION_GRAVE,0,nil,e,tp)
-	local exg=Duel.GetMatchingGroup(s.xyzfilter,tp,LOCATION_EXTRA,0,nil)
-	if chk==0 then return Duel.IsPlayerCanSpecialSummonCount(tp,2)
-		and not Duel.IsPlayerAffectedByEffect(tp,59822133)
-		and Duel.GetLocationCount(tp,LOCATION_MZONE)>1
-		and mg:GetCount()>0 
-	end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local sg1=mg:FilterSelect(tp,s.mfilter1,1,1,nil,mg,exg)
-	local tc1=sg1:GetFirst()
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local sg2=mg:FilterSelect(tp,s.mfilter2,1,1,tc1,tc1,exg,tc1:GetLevel())
-	sg1:Merge(sg2)
-	Duel.SetTargetCard(sg1)
-	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,sg1,2,0,0)
-end
-function s.filter4(c,e,tp)
-	return c:IsRelateToEffect(e) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
-end
-function s.activate(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	if Duel.IsPlayerAffectedByEffect(tp,59822133) then return end
-	if Duel.GetLocationCount(tp,LOCATION_MZONE)<2 then return end
-	if Duel.GetLocationCountFromEx(tp)<=0 then return end
-	local g=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS):Filter(s.filter4,nil,e,tp)
-	if g:GetCount()<2 then return end
-	Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
-	local tc1=g:GetFirst()
-	local tc2=g:GetNext()
-	local newlvl=7
-	local e1=Effect.CreateEffect(c)
-	e1:SetType(EFFECT_TYPE_SINGLE)
-	e1:SetCode(EFFECT_CHANGE_LEVEL)
-	e1:SetValue(newlvl)
-	e1:SetReset(RESET_EVENT+0x1ff0000+RESET_PHASE+PHASE_END)
-	tc1:RegisterEffect(e1)
-	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_SINGLE)
-	e2:SetCode(EFFECT_CHANGE_LEVEL)
-	e2:SetValue(newlvl)
-	e2:SetReset(RESET_EVENT+0x1ff0000+RESET_PHASE+PHASE_END)
-	tc2:RegisterEffect(e2)
-	Duel.BreakEffect()
-	local xyzg=Duel.GetMatchingGroup(s.filter3,tp,LOCATION_EXTRA,0,nil,e,tp,newlvl)
-	if xyzg:GetCount()>0 then
-		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-		local xyz=xyzg:Select(tp,1,1,nil):GetFirst()
-		Duel.XyzSummon(tp,xyz,g)
-	end
-end
+
+-- Extra Deck special summon filter
 function s.spfilter(c,e,tp)
 	return c:IsCode(50000041) and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_XYZ,tp,true,true)
 end
-function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.GetLocationCountFromEx(tp)>0
-		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp) end
-	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
+
+-- helper: check if at least 2 monsters with same Level exist
+function s.haspair(g)
+	local lvcount={}
+	for tc in aux.Next(g) do
+		local lv=tc:GetLevel()
+		lvcount[lv]=(lvcount[lv] or 0)+1
+		if lvcount[lv]>=2 then return true end
+	end
+	return false
 end
-function s.spop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.GetLocationCountFromEx(tp)<=0 then return end
+
+-- target setup
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+	local sc=s.spellcount(tp)
+	if chk==0 then
+		if sc<5 then
+			-- need 2 monsters with same Level in GY + 2 zones free
+			local g=Duel.GetMatchingGroup(s.lvfilter,tp,LOCATION_GRAVE,0,nil,e,tp)
+			return s.haspair(g) and Duel.GetLocationCount(tp,LOCATION_MZONE)>1
+		else
+			-- need Harmony Wielder of Kindness in Extra
+			return Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp)
+		end
+	end
+end
+
+-- activation operation
+function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp)
-	if g:GetCount()>0 then
-		if Duel.SpecialSummon(g,SUMMON_TYPE_XYZ,tp,tp,true,true,POS_FACEUP)~=0 then
+	local sc=s.spellcount(tp)
+	if sc<5 then
+		-- First effect: pick 2 monsters with same Level
+		if Duel.GetLocationCount(tp,LOCATION_MZONE)<2 then return end
+		local g=Duel.GetMatchingGroup(s.lvfilter,tp,LOCATION_GRAVE,0,nil,e,tp)
+		if #g<2 then return end
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+		local sg1=g:Select(tp,1,1,nil)
+		local tc1=sg1:GetFirst()
+		local lvl=tc1:GetLevel()
+		local g2=g:Filter(function(c) return c:GetLevel()==lvl and c~=tc1 end,nil)
+		if #g2==0 then return end
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+		local sg2=g2:Select(tp,1,1,nil)
+		sg1:Merge(sg2)
+		if Duel.SpecialSummon(sg1,0,tp,tp,false,false,POS_FACEUP)==2 then
+			for tc in aux.Next(sg1) do
+				-- Negate effects
+				local e1=Effect.CreateEffect(c)
+				e1:SetType(EFFECT_TYPE_SINGLE)
+				e1:SetCode(EFFECT_DISABLE)
+				e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+				tc:RegisterEffect(e1)
+				local e2=e1:Clone()
+				e2:SetCode(EFFECT_DISABLE_EFFECT)
+				tc:RegisterEffect(e2)
+				-- Change Level to 7
+				local e3=Effect.CreateEffect(c)
+				e3:SetType(EFFECT_TYPE_SINGLE)
+				e3:SetCode(EFFECT_CHANGE_LEVEL)
+				e3:SetValue(7)
+				e3:SetReset(RESET_EVENT+RESETS_STANDARD)
+				tc:RegisterEffect(e3)
+			end
+			Duel.BreakEffect()
+			local xyzg=Duel.GetMatchingGroup(s.xyzfilter,tp,LOCATION_EXTRA,0,nil,sg1)
+			if #xyzg>0 then
+				Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+				local xyz=xyzg:Select(tp,1,1,nil):GetFirst()
+				Duel.XyzSummon(tp,xyz,sg1)
+			end
+		end
+	else
+		-- Second effect: summon Harmony Wielder of Kindness
+		if Duel.GetLocationCountFromEx(tp)<=0 then return end
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+		local g=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp)
+		if #g>0 and Duel.SpecialSummon(g,SUMMON_TYPE_XYZ,tp,tp,true,true,POS_FACEUP)~=0 then
+			local tc=g:GetFirst()
+			tc:CompleteProcedure()
 			if c:IsRelateToEffect(e) then
 				c:CancelToGrave()
-				Duel.Overlay(g:GetFirst(),Group.FromCards(c))
+				Duel.Overlay(tc,Group.FromCards(c))
 			end
 		end
 	end
 end
+
+-- recover target
 function s.recfilter(c)
 	return c:IsFaceup() and c:GetBaseAttack()>0
 end
-function s.tdtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+function s.rectg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chkc then return chkc:IsLocation(LOCATION_MZONE) and s.recfilter(chkc) end
 	if chk==0 then return Duel.IsExistingTarget(s.recfilter,tp,LOCATION_MZONE,LOCATION_MZONE,1,nil) end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TARGET)
 	local g=Duel.SelectTarget(tp,s.recfilter,tp,LOCATION_MZONE,LOCATION_MZONE,1,1,nil)
 	Duel.SetOperationInfo(0,CATEGORY_RECOVER,nil,0,tp,g:GetFirst():GetBaseAttack())
 end
-function s.tdop(e,tp,eg,ep,ev,re,r,rp)
+function s.recop(e,tp,eg,ep,ev,re,r,rp)
 	local tc=Duel.GetFirstTarget()
-	if tc:IsRelateToEffect(e) and tc:IsFaceup() and tc:GetAttack()>0 then
+	if tc and tc:IsRelateToEffect(e) and tc:IsFaceup() then
 		Duel.Recover(tp,tc:GetBaseAttack(),REASON_EFFECT)
 	end
 end

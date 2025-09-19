@@ -1,5 +1,4 @@
 -- Sublimation of Magic
-
 function c50000048.initial_effect(c)
 	--Activate
 	local e1=Effect.CreateEffect(c)
@@ -12,7 +11,7 @@ function c50000048.initial_effect(c)
 	e2:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e2:SetType(EFFECT_TYPE_IGNITION)
 	e2:SetRange(LOCATION_SZONE)
-	e2:SetCountLimit(1,EFFECT_COUNT_CODE_SINGLE)
+	e2:SetCountLimit(1,50000048,EFFECT_COUNT_CODE_SINGLE)
 	e2:SetTarget(c50000048.target)
 	e2:SetOperation(c50000048.operation)
 	c:RegisterEffect(e2)
@@ -22,7 +21,7 @@ function c50000048.initial_effect(c)
 	e3:SetCategory(CATEGORY_TOGRAVE)
 	e3:SetType(EFFECT_TYPE_IGNITION)
 	e3:SetRange(LOCATION_SZONE)
-	e3:SetCountLimit(1,EFFECT_COUNT_CODE_SINGLE)
+	e3:SetCountLimit(1,50000048,EFFECT_COUNT_CODE_SINGLE)
 	e3:SetTarget(c50000048.target2)
 	e3:SetOperation(c50000048.operation2)
 	c:RegisterEffect(e3)
@@ -32,21 +31,18 @@ function c50000048.initial_effect(c)
 	e4:SetCategory(CATEGORY_TODECK+CATEGORY_DRAW)
 	e4:SetType(EFFECT_TYPE_IGNITION)
 	e4:SetRange(LOCATION_SZONE)
-	e4:SetCountLimit(1,EFFECT_COUNT_CODE_SINGLE)
+	e4:SetCountLimit(1,50000048,EFFECT_COUNT_CODE_SINGLE)
 	e4:SetTarget(c50000048.target3)
 	e4:SetOperation(c50000048.operation3)
 	c:RegisterEffect(e4)
 end
-
 function c50000048.filter(c)
 	return c:IsSetCard(0x701) and c:IsType(TYPE_SPELL) and c:IsAbleToHand()
 end
-
 function c50000048.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(c50000048.filter,tp,LOCATION_DECK,0,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 end
-
 function c50000048.operation(e,tp,eg,ep,ev,re,r,rp)
 	if not e:GetHandler():IsRelateToEffect(e) then return end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
@@ -56,7 +52,6 @@ function c50000048.operation(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ConfirmCards(1-tp,g)
 	end
 end
-
 function c50000048.filter2(c)
 	return c:IsSetCard(0x701) and c:IsType(TYPE_SPELL) and c:IsAbleToGrave()
 end
@@ -71,7 +66,6 @@ function c50000048.operation2(e,tp,eg,ep,ev,re,r,rp)
 		Duel.SendtoGrave(g,REASON_EFFECT)
 	end
 end
-
 function c50000048.tdfilter(c)
 	return c:IsFaceup() and c:IsType(TYPE_SPELL) and c:IsSetCard(0x701) and c:IsAbleToDeck()
 end
