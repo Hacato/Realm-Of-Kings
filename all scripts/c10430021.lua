@@ -41,17 +41,15 @@ function s.initial_effect(c)
 	e5:SetCode(EVENT_FLIP_SUMMON_SUCCESS)
 	c:RegisterEffect(e5)
 	local e6=e4:Clone()
-	e6:SetCode(EVENT_SPECIAL_SUMMON_SUCCESS)
+	e6:SetCode(EVENT_SPSUMMON_SUCCESS)  -- Fixed: was EVENT_SPECIAL_SUMMON_SUCCESS
 	c:RegisterEffect(e6)
 end
-
 function s.spcon(e,c)
 	if c==nil then return true end
 	local tp=c:GetControler()
 	return Duel.GetLocationCount(1-tp,LOCATION_MZONE)>0
-		and not Duel.IsExistingMatchingCard(aux.FilterFaceupFunction(Card.IsAttribute,ATTRIBUTE_EARTH),tp,LOCATION_MZONE,0,1,nil)
+		and not Duel.IsExistingMatchingCard(Auxiliary.FaceupFilter(Card.IsAttribute,ATTRIBUTE_EARTH),tp,LOCATION_MZONE,0,1,nil)
 end
-
 function s.spfil(c,e,tp)
 	return c:IsType(TYPE_FLIP) and c:GetDefense()==1500 and c:IsCanBeSpecialSummoned(e,0,tp,false,false,POS_FACEDOWN_DEFENSE)
 end
@@ -75,7 +73,6 @@ end
 function s.atlimit(e,c)
 	return c:IsFaceup() and c:IsAttribute(ATTRIBUTE_EARTH) and c~=e:GetHandler()
 end
-
 function s.filter(c)
 	return c:IsFaceup() and c:IsCode(37970940)
 end
@@ -91,7 +88,7 @@ function s.ctop(e,tp,eg,ep,ev,re,r,rp)
 			e1:SetCode(EFFECT_CANNOT_ATTACK)
 			e1:SetReset(RESET_EVENT+0x1fe0000+RESET_PHASE+PHASE_END)
 			tc:RegisterEffect(e1)
-			tc=eg:GetNext()
 		end
+		tc=eg:GetNext()
 	end
 end
