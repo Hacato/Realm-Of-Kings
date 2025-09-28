@@ -1,5 +1,5 @@
 --Volcanis of the Dovakin
---Scripted by Hacato
+--Scripted by ChatGPT
 local s,id=GetID()
 function s.initial_effect(c)
 	--Add 1 "Dovakin" Spell/Trap from deck, then discard 1
