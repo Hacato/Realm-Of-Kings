@@ -1,6 +1,6 @@
 -- Rage Of The Dovakin
 -- Continuous Spell
--- setcode for Dovakin: 0x2411
+-- scripted by Hacato
 local s,id=GetID()
 function s.initial_effect(c)
     -- Activate
@@ -29,7 +29,7 @@ function s.initial_effect(c)
     e2:SetProperty(EFFECT_FLAG_DELAY)
     e2:SetCode(EVENT_LEAVE_FIELD)
     e2:SetRange(LOCATION_SZONE)
-    e2:SetCountLimit(1,id+100) -- once per duel-ish; engines sometimes need different handling for strict OPD, but this will limit usage
+    e2:SetCountLimit(1,id+100) -- once per duel
     e2:SetCondition(s.fuscon)
     e2:SetTarget(s.fustg)
     e2:SetOperation(s.fusop)
@@ -67,7 +67,7 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
     local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_HAND+LOCATION_DECK,0,1,1,nil,e,tp)
     local tc=g:GetFirst()
     if tc and Duel.SpecialSummon(tc,0,tp,tp,false,false,POS_FACEUP)~=0 then
-        -- make it banish when it leaves the field
+        -- banish when leaves field
         local e1=Effect.CreateEffect(e:GetHandler())
         e1:SetType(EFFECT_TYPE_SINGLE)
         e1:SetCode(EFFECT_LEAVE_FIELD_REDIRECT)
@@ -80,20 +80,15 @@ end
 
 -- (2) condition: check if any "Dovakin" you controlled left the field because of opponent's card effect
 function s.cfilter(c,tp)
-    -- Was on the field controlled by tp, left because of opponent effect
-    if not c:IsSetCard(0x2411) then return false end
-    if c:GetPreviousControler()~=tp then return false end
-    if not c:IsPreviousLocation(LOCATION_ONFIELD) then return false end
-    local reason=c:GetReason()
-    if bit.band(reason,REASON_EFFECT)==0 then return false end
-    local rp = c:GetReasonPlayer()
-    if not rp or rp==tp then return false end
-    return true
+    return c:IsSetCard(0x2411)
+        and c:GetPreviousControler()==tp
+        and c:IsPreviousLocation(LOCATION_ONFIELD)
+        and bit.band(c:GetReason(),REASON_EFFECT)~=0
+        and c:GetReasonPlayer() and c:GetReasonPlayer()~=tp
 end
 
 function s.fuscon(e,tp,eg,ep,ev,re,r,rp)
-    if not eg then return false end
-    return eg:IsExists(s.cfilter,1,nil,tp)
+    return eg and eg:IsExists(s.cfilter,1,nil,tp)
 end
 
 -- (2) Fusion target: check Extra Deck for a Dovakin Fusion that can be summoned
@@ -105,38 +100,31 @@ function s.fustg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then
         local mg=Duel.GetMatchingGroup(Card.IsCanBeFusionMaterial,tp,LOCATION_MZONE+LOCATION_HAND+LOCATION_GRAVE,0,nil)
         return Duel.IsExistingMatchingCard(s.fusfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp)
-            and mg:GetCount()>0
+            and #mg>0
     end
     Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
 end
 
--- (2) Fusion operation: select fusion monster from Extra, select materials from hand/field/GY, send materials to GY, special summon fusion
 function s.fusop(e,tp,eg,ep,ev,re,r,rp)
-    local c=e:GetHandler()
     local mg=Duel.GetMatchingGroup(Card.IsCanBeFusionMaterial,tp,LOCATION_MZONE+LOCATION_HAND+LOCATION_GRAVE,0,nil)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
     local sg=Duel.GetMatchingGroup(s.fusfilter,tp,LOCATION_EXTRA,0,nil,e,tp)
-    if sg:GetCount()==0 then return end
+    if #sg==0 then return end
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
     local fc=sg:Select(tp,1,1,nil):GetFirst()
     if not fc then return end
-    -- Use engine helper to select materials (SelectFusionMaterial should be available on fusion monsters)
     local mat=nil
     if fc.CheckFusionMaterial then
-        -- try using built-in check/selection
         if not fc:CheckFusionMaterial(mg,nil,tp) then
-            -- cannot fusion summon this with available materials
             Duel.Hint(HINT_MESSAGE,tp,aux.Stringid(id,2) or "No valid fusion materials.")
             return
         end
         mat=fc:SelectFusionMaterial(tp,mg,nil,tp)
     else
-        -- fallback: ask the player to select materials manually (best-effort)
         Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SELECT)
         mat=mg:Select(tp,1,99,nil)
     end
-    if not mat or mat:GetCount()==0 then return end
-    -- send materials to graveyard as fusion material
+    if not mat or #mat==0 then return end
     Duel.SendtoGrave(mat,REASON_EFFECT+REASON_MATERIAL+REASON_FUSION)
     Duel.BreakEffect()
     if Duel.SpecialSummon(fc,SUMMON_TYPE_FUSION,tp,tp,false,false,POS_FACEUP)~=0 then

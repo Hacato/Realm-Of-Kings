@@ -1,5 +1,5 @@
 --Volcanis of the Dovakin
---Scripted by ChatGPT
+--Scripted by Hacato
 local s,id=GetID()
 function s.initial_effect(c)
 	--Add 1 "Dovakin" Spell/Trap from deck, then discard 1
@@ -12,17 +12,21 @@ function s.initial_effect(c)
 	e1:SetTarget(s.thtg)
 	e1:SetOperation(s.thop)
 	c:RegisterEffect(e1)
-	--Special Summon itself if banished
-	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,1))
-	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
-	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-	e2:SetCode(EVENT_REMOVE)
-	e2:SetProperty(EFFECT_FLAG_DELAY)
-	e2:SetCountLimit(1,id+1000)
-	e2:SetTarget(s.sptg)
-	e2:SetOperation(s.spop)
+	-- Also trigger on Special Summon
+	local e2=e1:Clone()
+	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e2)
+	--Special Summon itself if banished
+	local e3=Effect.CreateEffect(c)
+	e3:SetDescription(aux.Stringid(id,1))
+	e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
+	e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+	e3:SetCode(EVENT_REMOVE)
+	e3:SetProperty(EFFECT_FLAG_DELAY)
+	e3:SetCountLimit(1,id+1000)
+	e3:SetTarget(s.sptg)
+	e3:SetOperation(s.spop)
+	c:RegisterEffect(e3)
 end
 
 -- Filter for "Dovakin" Spell/Trap
@@ -32,8 +36,10 @@ end
 
 -- Add to hand target
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil)
-		and Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)>0 end
+	if chk==0 then
+		return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil)
+			and Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)>0
+	end
 	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 	Duel.SetOperationInfo(0,CATEGORY_HANDES,nil,0,tp,1)
 end
@@ -55,8 +61,10 @@ end
 
 -- Special Summon target
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-		and e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false) end
+	if chk==0 then
+		return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+			and e:GetHandler():IsCanBeSpecialSummoned(e,0,tp,false,false)
+	end
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,e:GetHandler(),1,0,0)
 end
 

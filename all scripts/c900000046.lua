@@ -3,7 +3,7 @@
 local s,id=GetID()
 function s.initial_effect(c)
 	c:EnableReviveLimit()
-	-- Must first be Special Summoned by its own procedure
+	-- Must first be Special Summoned by its own procedure (no Polymerization)
 	local e0=Effect.CreateEffect(c)
 	e0:SetType(EFFECT_TYPE_SINGLE)
 	e0:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
@@ -25,7 +25,7 @@ function s.initial_effect(c)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e2:SetOperation(s.sumsuc)
 	c:RegisterEffect(e2)
-	-- Quick effect: Banish 1 opponent’s card face-down
+	-- Quick effect: Banish 2 "Dovakin" from GY, banish 1 opponent’s card face-down
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,0))
 	e3:SetCategory(CATEGORY_REMOVE)
@@ -37,7 +37,7 @@ function s.initial_effect(c)
 	e3:SetTarget(s.rmtg)
 	e3:SetOperation(s.rmop)
 	c:RegisterEffect(e3)
-	-- Quick effect: Negate opponent’s effect
+	-- Quick effect: Negate opponent’s effect by banishing 1 "Dovakin" from hand, field, or GY
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,1))
 	e4:SetCategory(CATEGORY_NEGATE)
@@ -64,7 +64,7 @@ function s.initial_effect(c)
 	c:RegisterEffect(e5)
 end
 
--- Contact Fusion (3 Dovakin including 2 Fusion monsters)
+-- Contact Fusion: 3 "Dovakin" monsters including 2 Fusion monsters, from field or GY, banished as cost
 function s.matfilter(c)
 	return c:IsSetCard(0x2411) and c:IsType(TYPE_MONSTER) and c:IsAbleToRemoveAsCost()
 end
@@ -82,14 +82,19 @@ end
 function s.spop(e,tp,eg,ep,ev,re,r,rp,c)
 	local tp=c:GetControler()
 	local g=Duel.GetMatchingGroup(s.matfilter,tp,LOCATION_MZONE+LOCATION_GRAVE,0,nil)
+	local fg=g:Filter(Card.IsType,nil,TYPE_FUSION)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
-	local sg=g:Select(tp,3,3,nil)
-	Duel.Remove(sg,POS_FACEUP,REASON_COST)
+	-- Select 2 Fusion monsters first
+	local fus=fg:Select(tp,2,2,nil)
+	g:Sub(fus)
+	-- Select 1 more "Dovakin" monster
+	local rest=g:Select(tp,1,1,nil)
+	fus:Merge(rest)
+	Duel.Remove(fus,POS_FACEUP,REASON_COST)
 end
 
--- No response to summon
+-- Opponent cannot respond to summon
 function s.sumsuc(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
 	Duel.SetChainLimitTillChainEnd(function(e,rp,tp) return tp==rp end)
 end
 
@@ -132,23 +137,21 @@ function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	Duel.SetOperationInfo(0,CATEGORY_NEGATE,eg,1,0,0)
 end
 function s.negop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.NegateActivation(ev) and re:GetHandler():IsRelateToEffect(re) then
-		Duel.Remove(eg,POS_FACEUP,REASON_EFFECT)
-	end
+	Duel.NegateActivation(ev)
 end
 
--- Float into Dominus Maximus
+-- Float into Dominus Maximus (code: 900000047)
 function s.spcon2(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	return rp~=tp and c:IsPreviousControler(tp) and (r&REASON_EFFECT)~=0
+end
+function s.spfilter(c,e,tp)
+	return c:IsCode(900000047) and c:IsCanBeSpecialSummoned(e,0,tp,true,true)
 end
 function s.sptg2(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.GetLocationCountFromEx(tp,tp,nil,nil)>0
 		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp) end
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
-end
-function s.spfilter(c,e,tp)
-	return c:IsCode(900000047) and c:IsCanBeSpecialSummoned(e,0,tp,true,true)
 end
 function s.spop2(e,tp,eg,ep,ev,re,r,rp)
 	if Duel.GetLocationCountFromEx(tp,tp,nil,nil)<=0 then return end

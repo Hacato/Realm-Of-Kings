@@ -1,9 +1,11 @@
 -- Rise Of The Dovakin
 -- Field Spell
+-- scripted by Hacato
 local s,id=GetID()
 function s.initial_effect(c)
-	--Activate
+	-- Activate: optionally shuffle up to 6 banished "Dovakin" into the Deck, opponent gains 500 LP if you do
 	local e0=Effect.CreateEffect(c)
+	e0:SetDescription(aux.Stringid(id,0))
 	e0:SetCategory(CATEGORY_TODECK+CATEGORY_RECOVER)
 	e0:SetType(EFFECT_TYPE_ACTIVATE)
 	e0:SetCode(EVENT_FREE_CHAIN)
@@ -11,9 +13,9 @@ function s.initial_effect(c)
 	e0:SetOperation(s.actop)
 	c:RegisterEffect(e0)
 
-	--(1) Send 2 "Dovakin" monsters from Deck to GY by discarding 1 card
+	-- (1) Once per turn: discard 1, send 2 "Dovakin" monsters from Deck to GY
 	local e1=Effect.CreateEffect(c)
-	e1:SetDescription(aux.Stringid(id,0))
+	e1:SetDescription(aux.Stringid(id,1))
 	e1:SetCategory(CATEGORY_TOGRAVE)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_FZONE)
@@ -23,9 +25,9 @@ function s.initial_effect(c)
 	e1:SetOperation(s.gyop)
 	c:RegisterEffect(e1)
 
-	--(2) Negate monster effect in opponent's hand
+	-- (2) Once per turn: Negate opponent's monster effect in hand by banishing 1 "Dovakin" from Deck, then banish that monster
 	local e2=Effect.CreateEffect(c)
-	e2:SetDescription(aux.Stringid(id,1))
+	e2:SetDescription(aux.Stringid(id,2))
 	e2:SetCategory(CATEGORY_NEGATE+CATEGORY_REMOVE)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_QUICK_O)
 	e2:SetCode(EVENT_CHAINING)
@@ -46,21 +48,22 @@ function s.dovakinMonster(c)
 	return c:IsSetCard(0x2411) and c:IsType(TYPE_MONSTER)
 end
 
--- Activate: shuffle up to 6 banished back, opponent gains 500
+-- Activate: allow activation always, shuffle if you want and if available
 function s.acttg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.dovakin,tp,LOCATION_REMOVED,0,1,nil) end
+	if chk==0 then return true end  -- Always allow activation!
 	Duel.SetOperationInfo(0,CATEGORY_TODECK,nil,1,tp,LOCATION_REMOVED)
 	Duel.SetOperationInfo(0,CATEGORY_RECOVER,nil,0,1-tp,500)
 end
 function s.actop(e,tp,eg,ep,ev,re,r,rp)
 	local g=Duel.GetMatchingGroup(s.dovakin,tp,LOCATION_REMOVED,0,nil)
-	if #g==0 then return end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
-	local sg=g:Select(tp,1,6,nil)
-	if #sg>0 then
-		Duel.SendtoDeck(sg,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)
-		Duel.BreakEffect()
-		Duel.Recover(1-tp,500,REASON_EFFECT)
+	if #g>0 and Duel.SelectYesNo(tp,aux.Stringid(id,3) or "Shuffle up to 6 banished 'Dovakin' cards into your Deck?") then
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
+		local sg=g:Select(tp,1,6,nil)
+		if #sg>0 then
+			Duel.SendtoDeck(sg,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)
+			Duel.BreakEffect()
+			Duel.Recover(1-tp,500,REASON_EFFECT)
+		end
 	end
 end
 
@@ -97,11 +100,14 @@ function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
-	Duel.SetOperationInfo(0,CATEGORY_NEGATE,eg,1,0,0)
-	Duel.SetOperationInfo(0,CATEGORY_REMOVE,eg,1,0,0)
+	Duel.SetOperationInfo(0,CATEGORY_NEGATE,re:GetHandler(),1,0,0)
+	Duel.SetOperationInfo(0,CATEGORY_REMOVE,re:GetHandler(),1,0,0)
 end
 function s.negop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.NegateActivation(ev) and re:GetHandler():IsRelateToEffect(re) then
-		Duel.Remove(eg,POS_FACEUP,REASON_EFFECT)
+	if Duel.NegateActivation(ev) then
+		local rc=re:GetHandler()
+		if rc and rc:IsRelateToEffect(re) then
+			Duel.Remove(rc,POS_FACEUP,REASON_EFFECT)
+		end
 	end
 end
