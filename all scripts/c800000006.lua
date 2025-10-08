@@ -1,5 +1,5 @@
 --Yoshiie Flame-Bearer – Katsumoto
---Created by [Your Name]
+--Created by Hacato
 local s,id=GetID()
 function s.initial_effect(c)
 	--Place 1 "Yoshiie Formation" Spell/Trap from Deck face-up in S/T Zone when summoned
@@ -8,6 +8,7 @@ function s.initial_effect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e1:SetProperty(EFFECT_FLAG_DELAY)
 	e1:SetCode(EVENT_SUMMON_SUCCESS)
+	e1:SetCountLimit(1,id) -- hard OPT (first effect only)
 	e1:SetTarget(s.pltg)
 	e1:SetOperation(s.plop)
 	c:RegisterEffect(e1)
@@ -15,7 +16,7 @@ function s.initial_effect(c)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e2)
 	
-	--Draw 1 card when used as Synchro Material
+	--Draw 1 card when used as Synchro Material (no OPT)
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_DRAW)
@@ -30,11 +31,11 @@ end
 
 --Filter for "Yoshiie Formation" Spell/Trap cards
 function s.plfilter(c,tp)
-	return c:IsSetCard(0x2409) and c:IsType(TYPE_SPELL+TYPE_TRAP) 
+	return c:IsSetCard(0x2409) and c:IsType(TYPE_SPELL+TYPE_TRAP)
 		and not c:IsForbidden() and c:CheckUniqueOnField(tp)
 end
 function s.pltg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0 
+	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 		and Duel.IsExistingMatchingCard(s.plfilter,tp,LOCATION_DECK,0,1,nil,tp) end
 end
 function s.plop(e,tp,eg,ep,ev,re,r,rp)

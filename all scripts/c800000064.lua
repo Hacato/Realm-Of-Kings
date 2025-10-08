@@ -7,7 +7,7 @@ function s.initial_effect(c)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
 	e1:SetCode(EVENT_FREE_CHAIN)
 	e1:SetProperty(EFFECT_FLAG_CARD_TARGET)
-	e1:SetCountLimit(1,id)
+	e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	e1:SetTarget(s.sctg)
 	e1:SetOperation(s.scop)
 	c:RegisterEffect(e1)
@@ -19,7 +19,7 @@ function s.initial_effect(c)
 	e2:SetType(EFFECT_TYPE_QUICK_O)
 	e2:SetCode(EVENT_FREE_CHAIN)
 	e2:SetRange(LOCATION_GRAVE)
-	e2:SetCountLimit(1,id+100)
+	e2:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	e2:SetHintTiming(0,TIMINGS_CHECK_MONSTER+TIMING_END_PHASE)
 	e2:SetCost(s.thcost)
 	e2:SetTarget(s.thtg)
@@ -37,6 +37,12 @@ function s.synfilter(c,e,tp,lv)
 	return c:IsType(TYPE_SYNCHRO) and c:IsRace(RACE_ZOMBIE)
 		and c:IsLevel(lv) and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_SYNCHRO,tp,false,false)
 end
+
+-- Helper function to check if a valid Synchro exists for given level
+function s.syncheck(e,tp,lv)
+	return Duel.IsExistingMatchingCard(s.synfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp,lv)
+end
+
 function s.sctg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	local g=Duel.GetMatchingGroup(s.tdfilter,tp,LOCATION_REMOVED,0,nil)
 	if chk==0 then
@@ -46,7 +52,15 @@ function s.sctg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 		for tc in aux.Next(tuners) do
 			nonTuners:RemoveCard(tc)
 		end
-		return #tuners>0 and #nonTuners>0
+		if #tuners==0 or #nonTuners==0 then return false end
+		-- Check if any valid combination has a matching Synchro Monster
+		for tuner in aux.Next(tuners) do
+			for nontuner in aux.Next(nonTuners) do
+				local lv=tuner:GetLevel()+nontuner:GetLevel()
+				if s.syncheck(e,tp,lv) then return true end
+			end
+		end
+		return false
 	end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TODECK)
 	local g1=g:FilterSelect(tp,Card.IsType,1,1,nil,TYPE_TUNER)

@@ -8,23 +8,26 @@ function s.initial_effect(c)
     e1:SetType(EFFECT_TYPE_IGNITION)
     e1:SetRange(LOCATION_MZONE)
     e1:SetCountLimit(1,id)
+    e1:SetCondition(s.spcon)
     e1:SetTarget(s.sptg)
     e1:SetOperation(s.spop)
     c:RegisterEffect(e1)
-
     -- If banished: burn 1000
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,1))
     e2:SetCategory(CATEGORY_DAMAGE)
-    e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-    e2:SetProperty(EFFECT_FLAG_DELAY)
+    e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+    e2:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_PLAYER_TARGET)
     e2:SetCode(EVENT_REMOVE)
     e2:SetCountLimit(1,id+1)
     e2:SetTarget(s.damtg)
     e2:SetOperation(s.damop)
     c:RegisterEffect(e2)
 end
-
+-- e1: condition - your Main Phase
+function s.spcon(e,tp,eg,ep,ev,re,r,rp)
+    return Duel.IsMainPhase() and Duel.GetTurnPlayer()==tp
+end
 -- e1: send self + 1 Zombie Tuner from Deck, summon Zombie Synchro
 function s.tgfilter(c)
     return c:IsRace(RACE_ZOMBIE) and c:IsType(TYPE_TUNER) and c:IsAbleToGrave()
@@ -40,7 +43,7 @@ function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
         return c:IsAbleToGrave() 
             and Duel.IsExistingMatchingCard(s.tgfilter,tp,LOCATION_DECK,0,1,nil)
     end
-    Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,nil,2,tp,LOCATION_ONFIELD+LOCATION_DECK)
+    Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,nil,2,tp,LOCATION_MZONE+LOCATION_DECK)
     Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
 end
 function s.spop(e,tp,eg,ep,ev,re,r,rp)
@@ -52,17 +55,15 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
     if not tc then return end
     local lv=c:GetLevel()+tc:GetLevel()
     g:AddCard(c)
-    if Duel.SendtoGrave(g,REASON_EFFECT)==2 then
+    if Duel.SendtoGrave(g,REASON_EFFECT)==2 and g:FilterCount(Card.IsLocation,nil,LOCATION_GRAVE)==2 then
         Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
         local sg=Duel.SelectMatchingCard(tp,s.synfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp,lv)
         local sc=sg:GetFirst()
-        if sc then
-            Duel.SpecialSummon(sc,SUMMON_TYPE_SYNCHRO,tp,tp,false,false,POS_FACEUP)
+        if sc and Duel.SpecialSummon(sc,SUMMON_TYPE_SYNCHRO,tp,tp,false,false,POS_FACEUP)>0 then
             sc:CompleteProcedure()
         end
     end
 end
-
 -- e2: burn 1000 when banished
 function s.damtg(e,tp,eg,ep,ev,re,r,rp,chk)
     if chk==0 then return true end

@@ -8,19 +8,19 @@ function s.initial_effect(c)
 	e0:SetCode(EVENT_FREE_CHAIN)
 	c:RegisterEffect(e0)
 	
-	--Add 1 "Yoshiie" monster from Deck to hand
+	--Add 1 "Yoshiie" monster from Deck to hand (OPT)
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_SZONE)
-	e1:SetCountLimit(1,0,EFFECT_COUNT_CODE_SINGLE)
+	e1:SetCountLimit(1,id) -- proper once per turn ID-based limit
 	e1:SetCondition(s.thcon)
 	e1:SetTarget(s.thtg)
 	e1:SetOperation(s.thop)
 	c:RegisterEffect(e1)
 	
-	--Special Summon FIRE Warrior from GY
+	--Special Summon FIRE Warrior from GY (OPT)
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,1))
 	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
@@ -28,6 +28,7 @@ function s.initial_effect(c)
 	e2:SetCode(EVENT_TO_GRAVE)
 	e2:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_CARD_TARGET+EFFECT_FLAG_DAMAGE_STEP)
 	e2:SetRange(LOCATION_SZONE)
+	e2:SetCountLimit(1,{id,1}) -- separate once per turn for this effect
 	e2:SetCondition(s.spcon)
 	e2:SetTarget(s.sptg)
 	e2:SetOperation(s.spop)
@@ -68,8 +69,8 @@ end
 
 --Special Summon condition: "Yoshiie" monster sent to GY
 function s.spconfilter(c,tp)
-	return c:IsSetCard(0x2408) and c:IsType(TYPE_MONSTER) 
-		and c:IsPreviousControler(tp) 
+	return c:IsSetCard(0x2408) and c:IsType(TYPE_MONSTER)
+		and c:IsPreviousControler(tp)
 		and c:IsPreviousLocation(LOCATION_MZONE)
 end
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
@@ -78,7 +79,7 @@ end
 
 --Special Summon target
 function s.spfilter(c,e,tp)
-	return c:IsAttribute(ATTRIBUTE_FIRE) and c:IsRace(RACE_WARRIOR) 
+	return c:IsAttribute(ATTRIBUTE_FIRE) and c:IsRace(RACE_WARRIOR)
 		and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
 end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)

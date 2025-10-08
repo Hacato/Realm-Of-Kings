@@ -4,7 +4,6 @@ function s.initial_effect(c)
 	--Synchro Summon
 	Synchro.AddProcedure(c,aux.FilterBoolFunctionEx(Card.IsSetCard,0x2411),1,1,aux.FilterBoolFunctionEx(Card.IsSetCard,0x2411),1,99)
 	c:EnableReviveLimit()
-
 	--Banish if a Fusion monster was used as material
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
@@ -15,7 +14,6 @@ function s.initial_effect(c)
 	e1:SetTarget(s.rmtg)
 	e1:SetOperation(s.rmop)
 	c:RegisterEffect(e1)
-
 	--Change attack target's battle position
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,1))
@@ -25,7 +23,6 @@ function s.initial_effect(c)
 	e2:SetTarget(s.postg)
 	e2:SetOperation(s.posop)
 	c:RegisterEffect(e2)
-
 	--Negate opponent's activation in the Battle Phase
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,2))
@@ -38,25 +35,29 @@ function s.initial_effect(c)
 	e3:SetTarget(s.negtg)
 	e3:SetOperation(s.negop)
 	c:RegisterEffect(e3)
-
 	--Can attack all monsters
 	local e4=Effect.CreateEffect(c)
 	e4:SetType(EFFECT_TYPE_SINGLE)
 	e4:SetCode(EFFECT_ATTACK_ALL)
 	e4:SetValue(1)
 	c:RegisterEffect(e4)
-
-	--Other monsters cannot attack if this card attacked
+	--Register when this card attacks
 	local e5=Effect.CreateEffect(c)
-	e5:SetType(EFFECT_TYPE_FIELD)
-	e5:SetCode(EFFECT_CANNOT_ATTACK)
-	e5:SetProperty(EFFECT_FLAG_IGNORE_IMMUNE)
-	e5:SetRange(LOCATION_MZONE)
-	e5:SetTargetRange(LOCATION_MZONE,0)
-	e5:SetTarget(s.atklimit)
+	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e5:SetCode(EVENT_ATTACK_ANNOUNCE)
+	e5:SetOperation(s.atkregop)
 	c:RegisterEffect(e5)
+	--Other monsters cannot attack if this card attacked
+	local e6=Effect.CreateEffect(c)
+	e6:SetType(EFFECT_TYPE_FIELD)
+	e6:SetCode(EFFECT_CANNOT_ATTACK)
+	e6:SetProperty(EFFECT_FLAG_IGNORE_IMMUNE)
+	e6:SetRange(LOCATION_MZONE)
+	e6:SetTargetRange(LOCATION_MZONE,0)
+	e6:SetTarget(s.atklimit)
+	e6:SetCondition(s.atkcon)
+	c:RegisterEffect(e6)
 end
-
 --Check if Fusion monster used as material
 function s.rmcon(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
@@ -73,7 +74,6 @@ function s.rmop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Remove(g,POS_FACEUP,REASON_EFFECT)
 	end
 end
-
 --Change battle position of attack target
 function s.postg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.GetAttackTarget()~=nil end
@@ -85,7 +85,6 @@ function s.posop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ChangePosition(tc,POS_FACEUP_DEFENSE)
 	end
 end
-
 --Negate and destroy during Battle Phase
 function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 	return Duel.GetCurrentPhase()>=PHASE_BATTLE_START and Duel.GetCurrentPhase()<=PHASE_BATTLE and rp==1-tp
@@ -106,8 +105,16 @@ function s.negop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Destroy(eg,REASON_EFFECT)
 	end
 end
-
+--Register that this card attacked
+function s.atkregop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	c:RegisterFlagEffect(id,RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END,0,1)
+end
+--Check if this card has attacked this turn
+function s.atkcon(e)
+	return e:GetHandler():GetFlagEffect(id)>0
+end
 --Attack restriction after Valzixeen attacks
 function s.atklimit(e,c)
-	return c~=e:GetHandler() and Duel.GetAttacker()==e:GetHandler()
+	return c~=e:GetHandler()
 end
