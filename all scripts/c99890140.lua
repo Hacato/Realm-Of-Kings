@@ -21,7 +21,7 @@ function c99890140.unfilter(c)
   return c:IsSetCard(0x989) and c:IsFaceup()
 end
 function c99890140.lmfilter(c)
-  return c:IsFaceup() and c:IsSetCard(0x989) and c:IsSetCard(0xF29) 
+  return c:IsFaceup() and c:IsSetCard(0x989) and c:IsSetCard(0xd) 
 end
 function c99890140.untg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
   if chk==0 then return Duel.IsExistingTarget(c99890140.unfilter,tp,LOCATION_MZONE,0,1,nil) end
