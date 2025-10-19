@@ -1,5 +1,5 @@
 --Fate Servant Summoning Ritual
---Scripted by Raivost
+--Scripted by Raivost, modified by Hacato
 function c99890010.initial_effect(c)
   --Activate
   local e0=Effect.CreateEffect(c)
@@ -25,17 +25,19 @@ function c99890010.initial_effect(c)
   e2:SetOperation(c99890010.scop)
   c:RegisterEffect(e2)
   --(3) Search
-  local e1=Effect.CreateEffect(c)
-  e1:SetDescription(aux.Stringid(99890010,2))
-  e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
-  e1:SetType(EFFECT_TYPE_IGNITION)
-  e1:SetRange(LOCATION_FZONE)
-  e1:SetCountLimit(1,99890010)
-  e1:SetCost(c99890010.thcost)
-  e1:SetTarget(c99890010.thtg)
-  e1:SetOperation(c99890010.thop)
-  c:RegisterEffect(e1)
+  local e3=Effect.CreateEffect(c)
+  e3:SetDescription(aux.Stringid(99890010,2))
+  e3:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+  e3:SetType(EFFECT_TYPE_IGNITION)
+  e3:SetRange(LOCATION_FZONE)
+  e3:SetCountLimit(1,99890010)
+  e3:SetCost(c99890010.thcost)
+  e3:SetTarget(c99890010.thtg)
+  e3:SetOperation(c99890010.thop)
+  c:RegisterEffect(e3)
 end
+
+--(1) Ritual Summon
 function c99890010.spfilter(c,e,tp,m1,m2,ft)
   if not c:IsSetCard(0x989) or bit.band(c:GetType(),0x81)~=0x81
   or not c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_RITUAL,tp,false,true) then return false end
@@ -104,7 +106,8 @@ function c99890010.spop(e,tp,eg,ep,ev,re,r,rp)
     tc:CompleteProcedure()
   end
 end
---(2) Shuffle condtion
+
+--(2) Shuffle condition (fixed and safe)
 function c99890010.scfilter(c,tp)
   return c:IsSetCard(0x989) and c:IsSummonType(SUMMON_TYPE_RITUAL) and c:GetSummonPlayer()==tp
 end
@@ -113,41 +116,53 @@ function c99890010.sccon(e,tp,eg,ep,ev,re,r,rp)
 end
 function c99890010.scop(e,tp,eg,ep,ev,re,r,rp)
   local c=e:GetHandler()
-  --(2.1) Shuffle
+  local rc=eg:GetFirst()
   local e1=Effect.CreateEffect(c)
   e1:SetDescription(aux.Stringid(99890010,1))
   e1:SetCategory(CATEGORY_TODECK)
   e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
   e1:SetCode(EVENT_PHASE+PHASE_STANDBY)
   e1:SetRange(LOCATION_FZONE)
-  e1:SetCountLimit(1)
-  e1:SetLabelObject(eg:GetFirst())
+  e1:SetLabelObject(rc)
+  e1:SetLabel(Duel.GetTurnCount())
   e1:SetCondition(c99890010.tdcon)
   e1:SetTarget(c99890010.tdtg)
   e1:SetOperation(c99890010.tdop)
   c:RegisterEffect(e1)
 end
 function c99890010.tdcon(e,tp,eg,ep,ev,re,r,rp)
-  return Duel.GetTurnPlayer()==tp and Duel.GetTurnCount()==e:GetHandler():GetTurnID()+2
+  local tc=e:GetLabelObject()
+  if not tc or not tc:IsFaceup() or not tc:IsLocation(LOCATION_MZONE) then
+    e:Reset()
+    return false
+  end
+  return Duel.GetTurnPlayer()==tp and Duel.GetTurnCount()>e:GetLabel()
 end
 function c99890010.tdfilter(c,e,tp)
-  return c:IsLocation(LOCATION_REMOVED) and c:IsReason(REASON_MATERIAL+REASON_RITUAL) and c:IsControler(tp) and c:IsAbleToDeck()
+  return c:IsLocation(LOCATION_REMOVED)
+    and c:IsReason(REASON_MATERIAL+REASON_RITUAL)
+    and c:IsControler(tp)
+    and c:IsAbleToDeck()
 end
-function c99890010.tdtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+function c99890010.tdtg(e,tp,eg,ep,ev,re,r,rp,chk)
   local tc=e:GetLabelObject()
+  if not tc then return false end
   local g=tc:GetMaterial():Filter(c99890010.tdfilter,nil,e,tp)
-  if chk==0 then return g:GetCount()>0 end
+  if chk==0 then return #g>0 end
   Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_TODECK,g,g:GetCount(),0,0)
+  Duel.SetOperationInfo(0,CATEGORY_TODECK,g,#g,0,0)
 end
 function c99890010.tdop(e,tp,eg,ep,ev,re,r,rp)
-  if not e:GetHandler():IsRelateToEffect(e) then return end
+  local c=e:GetHandler()
+  if not c:IsRelateToEffect(e) then return end
   local tc=e:GetLabelObject()
+  if not tc or not tc:IsFaceup() or not tc:IsLocation(LOCATION_MZONE) then return end
   local g=tc:GetMaterial():Filter(c99890010.tdfilter,nil,e,tp)
-  if g:GetCount()>0 then
+  if #g>0 then
     Duel.SendtoDeck(g,nil,2,REASON_EFFECT)
   end
 end
+
 --(3) Search
 function c99890010.thcostfilter(c)
   return c:IsType(TYPE_MONSTER) and c:IsSetCard(0xF09) and c:IsAbleToDeckAsCost()
@@ -159,7 +174,8 @@ function c99890010.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
   Duel.SendtoDeck(g,nil,2,REASON_COST)
 end
 function c99890010.thfilter(c)
-  return c:IsSetCard(0x989) and c:IsType(TYPE_MONSTER) and bit.band(c:GetType(),0x81)==0x81 and c:IsAbleToHand()
+  return c:IsSetCard(0x989) and c:IsType(TYPE_MONSTER)
+    and bit.band(c:GetType(),0x81)==0x81 and c:IsAbleToHand()
 end
 function c99890010.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
   if chk==0 then return Duel.IsExistingMatchingCard(c99890010.thfilter,tp,LOCATION_DECK,0,1,nil) end
@@ -170,7 +186,7 @@ function c99890010.thop(e,tp,eg,ep,ev,re,r,rp)
   if not e:GetHandler():IsRelateToEffect(e) then return end
   Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
   local g=Duel.SelectMatchingCard(tp,c99890010.thfilter,tp,LOCATION_DECK,0,1,1,nil)
-  if g:GetCount()>0 then
+  if #g>0 then
     Duel.SendtoHand(g,nil,REASON_EFFECT)
     Duel.ConfirmCards(1-tp,g)
   end

@@ -6,7 +6,7 @@ function s.initial_effect(c)
 	e0:SetType(EFFECT_TYPE_SINGLE)
 	e0:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
 	e0:SetCode(EFFECT_ADD_CODE)
-	e0:SetValue(14735698)
+	e0:SetValue(54959865)
 	c:RegisterEffect(e0)
 	--Special Summon from hand
 	local e1=Effect.CreateEffect(c)

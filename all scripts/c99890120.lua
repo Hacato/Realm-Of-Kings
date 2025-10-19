@@ -18,7 +18,7 @@ function c99890120.tgfilter(c,e,tp,ft)
   and Duel.IsExistingMatchingCard(c99890120.spfilter,tp,LOCATION_HAND+LOCATION_DECK,0,1,nil,e,tp,c:GetCode())
 end
 function c99890120.spfilter(c,e,tp,code)
-  return c:IsSetCard(0x989) and aux.IsCodeListed(c,code) and c:IsCanBeSpecialSummoned(e,0,tp,true,true)
+  return c:IsSetCard(0x989) and Card.ListsCode(c,code) and c:IsCanBeSpecialSummoned(e,0,tp,true,true)
 end
 function c99890120.tgtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
   local ft=Duel.GetLocationCount(tp,LOCATION_MZONE)
