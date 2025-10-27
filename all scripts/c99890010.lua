@@ -107,7 +107,7 @@ function c99890010.spop(e,tp,eg,ep,ev,re,r,rp)
   end
 end
 
---(2) Shuffle condition (fixed and safe)
+--(2) Shuffle condition (fixed)
 function c99890010.scfilter(c,tp)
   return c:IsSetCard(0x989) and c:IsSummonType(SUMMON_TYPE_RITUAL) and c:GetSummonPlayer()==tp
 end
@@ -117,13 +117,16 @@ end
 function c99890010.scop(e,tp,eg,ep,ev,re,r,rp)
   local c=e:GetHandler()
   local rc=eg:GetFirst()
+  -- Store the material group instead of relying on the monster
+  local mat=rc:GetMaterial():Filter(Card.IsLocation,nil,LOCATION_REMOVED)
+  if #mat==0 then return end
   local e1=Effect.CreateEffect(c)
   e1:SetDescription(aux.Stringid(99890010,1))
   e1:SetCategory(CATEGORY_TODECK)
   e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
   e1:SetCode(EVENT_PHASE+PHASE_STANDBY)
   e1:SetRange(LOCATION_FZONE)
-  e1:SetLabelObject(rc)
+  e1:SetLabelObject(mat)
   e1:SetLabel(Duel.GetTurnCount())
   e1:SetCondition(c99890010.tdcon)
   e1:SetTarget(c99890010.tdtg)
@@ -131,35 +134,27 @@ function c99890010.scop(e,tp,eg,ep,ev,re,r,rp)
   c:RegisterEffect(e1)
 end
 function c99890010.tdcon(e,tp,eg,ep,ev,re,r,rp)
-  local tc=e:GetLabelObject()
-  if not tc or not tc:IsFaceup() or not tc:IsLocation(LOCATION_MZONE) then
-    e:Reset()
-    return false
-  end
   return Duel.GetTurnPlayer()==tp and Duel.GetTurnCount()>e:GetLabel()
 end
-function c99890010.tdfilter(c,e,tp)
-  return c:IsLocation(LOCATION_REMOVED)
-    and c:IsReason(REASON_MATERIAL+REASON_RITUAL)
-    and c:IsControler(tp)
-    and c:IsAbleToDeck()
+function c99890010.tdfilter(c)
+  return c:IsLocation(LOCATION_REMOVED) and c:IsAbleToDeck()
 end
 function c99890010.tdtg(e,tp,eg,ep,ev,re,r,rp,chk)
-  local tc=e:GetLabelObject()
-  if not tc then return false end
-  local g=tc:GetMaterial():Filter(c99890010.tdfilter,nil,e,tp)
-  if chk==0 then return #g>0 end
+  local g=e:GetLabelObject()
+  if not g then return false end
+  local tg=g:Filter(c99890010.tdfilter,nil)
+  if chk==0 then return #tg>0 end
   Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_TODECK,g,#g,0,0)
+  Duel.SetOperationInfo(0,CATEGORY_TODECK,tg,#tg,0,0)
 end
 function c99890010.tdop(e,tp,eg,ep,ev,re,r,rp)
   local c=e:GetHandler()
   if not c:IsRelateToEffect(e) then return end
-  local tc=e:GetLabelObject()
-  if not tc or not tc:IsFaceup() or not tc:IsLocation(LOCATION_MZONE) then return end
-  local g=tc:GetMaterial():Filter(c99890010.tdfilter,nil,e,tp)
-  if #g>0 then
-    Duel.SendtoDeck(g,nil,2,REASON_EFFECT)
+  local g=e:GetLabelObject()
+  if not g then return end
+  local tg=g:Filter(c99890010.tdfilter,nil)
+  if #tg>0 then
+    Duel.SendtoDeck(tg,nil,2,REASON_EFFECT)
   end
 end
 

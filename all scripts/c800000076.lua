@@ -1,13 +1,19 @@
---Fate Rider, Iskandar
+--Fate Ascended Rider, Iskandar
 local s,id=GetID()
 function s.initial_effect(c)
+	--Cannot be Normal Summoned/Set
 	c:EnableReviveLimit()
-	--Ritual Summon procedure
-	Ritual.AddProcEqual{handler=c,filter=s.ritfilter,lv=c:GetLevel()}
-	--Effect 1: Add "Fate Servant Summoning Ritual" from Deck to hand
+	--Must be Special Summoned by "Fate Rider, Iskandar"
+	local e0=Effect.CreateEffect(c)
+	e0:SetType(EFFECT_TYPE_SINGLE)
+	e0:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
+	e0:SetCode(EFFECT_SPSUMMON_CONDITION)
+	e0:SetValue(s.splimit)
+	c:RegisterEffect(e0)
+	--Effect 1: Reveal to add "Fate Rider, Iskandar" from Deck, shuffle this back
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
-	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH+CATEGORY_TODECK)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_HAND)
 	e1:SetCountLimit(1,id)
@@ -36,67 +42,62 @@ function s.initial_effect(c)
 	e3b:SetCategory(CATEGORY_TOHAND)
 	e3b:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
 	e3b:SetCode(EVENT_LEAVE_FIELD)
-	e3b:SetCountLimit(1,{id,2})
 	e3b:SetLabelObject(e3)
 	e3b:SetCondition(s.retcon)
 	e3b:SetTarget(s.rettg)
 	e3b:SetOperation(s.retop)
 	c:RegisterEffect(e3b)
-	--Effect 4: Equip opponent's monster destroyed by battle
+	--Effect 4: Equip opponent's monster when they activate effect (Quick Effect)
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,3))
 	e4:SetCategory(CATEGORY_EQUIP)
-	e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-	e4:SetCode(EVENT_BATTLE_DESTROYING)
-	e4:SetCondition(s.btleqcon)
-	e4:SetTarget(s.btleqtg)
-	e4:SetOperation(s.btleqop)
+	e4:SetType(EFFECT_TYPE_QUICK_O)
+	e4:SetCode(EVENT_CHAINING)
+	e4:SetRange(LOCATION_MZONE)
+	e4:SetCountLimit(1)
+	e4:SetCondition(s.qeqcon)
+	e4:SetTarget(s.qeqtg)
+	e4:SetOperation(s.qeqop)
 	c:RegisterEffect(e4)
-	--Effect 5: Special Summon "Fate Ascended Rider, Iskandar"
+	--Effect 5: Place Relic Counter on Field Spell when leaving field
 	local e5=Effect.CreateEffect(c)
-	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e5:SetCode(EVENT_SPSUMMON_SUCCESS)
-	e5:SetOperation(s.spreg)
+	e5:SetDescription(aux.Stringid(id,4))
+	e5:SetCategory(CATEGORY_COUNTER)
+	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+	e5:SetCode(EVENT_LEAVE_FIELD)
+	e5:SetCondition(s.ctcon)
+	e5:SetOperation(s.ctop)
 	c:RegisterEffect(e5)
-	local e6=Effect.CreateEffect(c)
-	e6:SetDescription(aux.Stringid(id,4))
-	e6:SetCategory(CATEGORY_SPECIAL_SUMMON)
-	e6:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e6:SetRange(LOCATION_MZONE)
-	e6:SetCode(EVENT_PHASE+PHASE_STANDBY)
-	e6:SetCountLimit(1)
-	e6:SetCondition(s.spcon)
-	e6:SetCost(s.spcost)
-	e6:SetTarget(s.sptg)
-	e6:SetOperation(s.spop)
-	e6:SetLabelObject(e5)
-	c:RegisterEffect(e6)
 end
-s.listed_names={99890010,800000076}
-s.ritual_spell_code=99890010
+s.listed_names={800000075}
+s.counter_place_list={0x1997}
 
---Ritual filter
-function s.ritfilter(c)
-	return c:IsCode(99890010)
+--Special Summon limit: Only by "Fate Rider, Iskandar"
+function s.splimit(e,se,sp,st)
+	return se:GetHandler():IsCode(800000075)
 end
 
---Effect 1: Add "Fate Servant Summoning Ritual" from Deck
+--Effect 1: Add "Fate Rider, Iskandar" from Deck
 function s.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return not e:GetHandler():IsPublic() end
 end
 function s.thfilter(c)
-	return c:IsCode(99890010) and c:IsAbleToHand()
+	return c:IsCode(800000075) and c:IsAbleToHand()
 end
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+	Duel.SetOperationInfo(0,CATEGORY_TODECK,e:GetHandler(),1,0,0)
 end
 function s.thop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
 	local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil)
-	if #g>0 then
-		Duel.SendtoHand(g,nil,REASON_EFFECT)
+	if #g>0 and Duel.SendtoHand(g,nil,REASON_EFFECT)>0 then
 		Duel.ConfirmCards(1-tp,g)
+		local c=e:GetHandler()
+		if c:IsRelateToEffect(e) and c:IsLocation(LOCATION_HAND) then
+			Duel.SendtoDeck(c,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)
+		end
 	end
 end
 
@@ -175,7 +176,9 @@ function s.checkop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 function s.retcon(e,tp,eg,ep,ev,re,r,rp)
-	local g=e:GetLabelObject():GetLabelObject()
+	local label=e:GetLabelObject()
+	if not label then return false end
+	local g=label:GetLabelObject()
 	return g and #g>0
 end
 function s.rettg(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -184,59 +187,60 @@ function s.rettg(e,tp,eg,ep,ev,re,r,rp,chk)
 	Duel.SetOperationInfo(0,CATEGORY_TOHAND,g,#g,0,0)
 end
 function s.retop(e,tp,eg,ep,ev,re,r,rp)
-	local g=e:GetLabelObject():GetLabelObject()
+	local label=e:GetLabelObject()
+	if not label then return end
+	local g=label:GetLabelObject()
 	if g and #g>0 then
 		Duel.SendtoHand(g,nil,REASON_EFFECT)
 		g:DeleteGroup()
 	end
 end
 
---Effect 4: Equip opponent's monster destroyed by battle
-function s.btleqcon(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	local bc=c:GetBattleTarget()
-	return c:IsRelateToBattle() and bc:IsLocation(LOCATION_GRAVE) and bc:IsMonster() and bc:IsControler(1-tp)
+--Effect 4: Equip opponent's monster when they activate effect (Quick Effect)
+function s.qeqcon(e,tp,eg,ep,ev,re,r,rp)
+	local rc=re:GetHandler()
+	return rp==1-tp and re:IsMonsterEffect() and rc:IsLocation(LOCATION_HAND+LOCATION_MZONE) and rc:IsRelateToEffect(re)
 end
-function s.btleqtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	local bc=e:GetHandler():GetBattleTarget()
-	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0 and bc:IsCanBeEffectTarget(e) end
-	Duel.SetTargetCard(bc)
-	Duel.SetOperationInfo(0,CATEGORY_EQUIP,bc,1,0,0)
+function s.qeqtg(e,tp,eg,ep,ev,re,r,rp,chk)
+	local rc=re:GetHandler()
+	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0 and rc:IsAbleToChangeControler() end
+	Duel.SetTargetCard(rc)
+	Duel.SetOperationInfo(0,CATEGORY_EQUIP,rc,1,0,0)
 end
-function s.btleqop(e,tp,eg,ep,ev,re,r,rp)
+function s.qeqop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local tc=Duel.GetFirstTarget()
-	if tc and tc:IsRelateToEffect(e) and tc:IsMonster() and c:IsRelateToEffect(e) and c:IsFaceup() then
-		if Duel.Equip(tp,tc,c) then
-			--Equip limit
-			local e1=Effect.CreateEffect(c)
-			e1:SetType(EFFECT_TYPE_SINGLE)
-			e1:SetCode(EFFECT_EQUIP_LIMIT)
-			e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
-			e1:SetValue(s.eqlimit)
-			e1:SetLabelObject(c)
-			tc:RegisterEffect(e1)
-			--Opponent cannot Summon cards with same name
-			local code=tc:GetCode()
-			local e2=Effect.CreateEffect(c)
-			e2:SetType(EFFECT_TYPE_FIELD)
-			e2:SetCode(EFFECT_CANNOT_SUMMON)
-			e2:SetProperty(EFFECT_FLAG_PLAYER_TARGET+EFFECT_FLAG_CANNOT_DISABLE)
-			e2:SetRange(LOCATION_MZONE)
-			e2:SetTargetRange(0,1)
-			e2:SetLabel(code)
-			e2:SetTarget(s.sumlimit)
-			e2:SetCondition(s.sumcon)
-			e2:SetLabelObject(tc)
-			c:RegisterEffect(e2)
-			local e3=e2:Clone()
-			e3:SetCode(EFFECT_CANNOT_SPECIAL_SUMMON)
-			c:RegisterEffect(e3)
-			local e4=e2:Clone()
-			e4:SetCode(EFFECT_CANNOT_FLIP_SUMMON)
-			c:RegisterEffect(e4)
-		end
+	if not (tc and tc:IsRelateToEffect(e) and c:IsRelateToEffect(e) and c:IsFaceup()) then return end
+	if Duel.GetLocationCount(tp,LOCATION_SZONE)<=0 then return end
+	if Duel.Equip(tp,tc,c,true) then
+		--Equip limit
+		local e1=Effect.CreateEffect(c)
+		e1:SetType(EFFECT_TYPE_SINGLE)
+		e1:SetCode(EFFECT_EQUIP_LIMIT)
+		e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+		e1:SetValue(s.eqlimit)
+		e1:SetLabelObject(c)
+		tc:RegisterEffect(e1)
+		--Opponent cannot Summon cards with same name
+		local code=tc:GetCode()
+		local e2=Effect.CreateEffect(c)
+		e2:SetType(EFFECT_TYPE_FIELD)
+		e2:SetCode(EFFECT_CANNOT_SUMMON)
+		e2:SetProperty(EFFECT_FLAG_PLAYER_TARGET+EFFECT_FLAG_CANNOT_DISABLE)
+		e2:SetRange(LOCATION_MZONE)
+		e2:SetTargetRange(0,1)
+		e2:SetLabel(code)
+		e2:SetTarget(s.sumlimit)
+		e2:SetCondition(s.sumcon)
+		e2:SetLabelObject(tc)
+		c:RegisterEffect(e2)
+		local e3=e2:Clone()
+		e3:SetCode(EFFECT_CANNOT_SPECIAL_SUMMON)
+		c:RegisterEffect(e3)
+		local e4=e2:Clone()
+		e4:SetCode(EFFECT_CANNOT_FLIP_SUMMON)
+		c:RegisterEffect(e4)
 	end
 end
 function s.sumcon(e)
@@ -248,39 +252,17 @@ function s.sumlimit(e,c)
 	return c:IsCode(e:GetLabel())
 end
 
---Effect 5: Special Summon "Fate Ascended Rider, Iskandar"
-function s.spreg(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	if Duel.GetTurnPlayer()==tp and Duel.GetCurrentPhase()==PHASE_STANDBY then
-		e:SetLabel(Duel.GetTurnCount())
-		c:RegisterFlagEffect(id+1,RESET_EVENT+0x1fe0000+RESET_PHASE+PHASE_STANDBY+RESET_SELF_TURN,0,2)
-	else
-		e:SetLabel(0)
-		c:RegisterFlagEffect(id+1,RESET_EVENT+0x1fe0000+RESET_PHASE+PHASE_STANDBY+RESET_SELF_TURN,0,1)
-	end
+--Effect 5: Place Relic Counter on Field Spell
+function s.ctcon(e,tp,eg,ep,ev,re,r,rp)
+	return e:GetHandler():IsPreviousPosition(POS_FACEUP)
 end
-function s.spcon(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	return e:GetLabelObject():GetLabel()~=Duel.GetTurnCount() and tp==Duel.GetTurnPlayer() and c:GetFlagEffect(id+1)>0
-end
-function s.spcost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return e:GetHandler():IsAbleToRemoveAsCost() end
-	Duel.Remove(e:GetHandler(),POS_FACEUP,REASON_COST)
-end
-function s.spfilter(c,e,tp)
-	return c:IsCode(800000076) and c:IsCanBeSpecialSummoned(e,0,tp,true,true)
-end
-function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>-1
-		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE,0,1,nil,e,tp) end
-	Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE)
-end
-function s.spop(e,tp,eg,ep,ev,re,r,rp)
-	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_HAND+LOCATION_DECK+LOCATION_GRAVE,0,1,1,nil,e,tp)
-	if #g>0 then
-		Duel.SpecialSummon(g,0,tp,tp,true,true,POS_FACEUP)
+function s.ctop(e,tp,eg,ep,ev,re,r,rp)
+	local g=Duel.GetMatchingGroup(Card.IsFaceup,tp,LOCATION_FZONE,0,nil)
+	local tc=g:GetFirst()
+	while tc do
+		if tc:IsSetCard(0x989) then --"Fate" archetype setcode (adjust if different)
+			tc:AddCounter(0x1997,1)
+		end
+		tc=g:GetNext()
 	end
 end

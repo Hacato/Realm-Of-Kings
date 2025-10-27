@@ -16,24 +16,14 @@ function s.initial_effect(c)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e2)
 	--Can be used as entire Ritual requirement (once per turn)
-	local e3=Effect.CreateEffect(c)
-	e3:SetType(EFFECT_TYPE_SINGLE)
-	e3:SetCode(EFFECT_EXTRA_RITUAL_MATERIAL)
-	e3:SetValue(1)
-	e3:SetCondition(s.rcon)
-	c:RegisterEffect(e3)
-	local e4=Effect.CreateEffect(c)
-	e4:SetType(EFFECT_TYPE_SINGLE)
-	e4:SetCode(EFFECT_RITUAL_LEVEL)
-	e4:SetValue(s.rituallv)
-	e4:SetCondition(s.rcon)
-	c:RegisterEffect(e4)
+	local e3=Ritual.AddWholeLevelTribute(c,s.ritfilter_mat,s.rcon)
 	--Register when used as Ritual Material
 	local e5=Effect.CreateEffect(c)
 	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
 	e5:SetCode(EVENT_BE_MATERIAL)
 	e5:SetCondition(s.regcon)
 	e5:SetOperation(s.regop)
+	e5:SetLabelObject(e3)
 	c:RegisterEffect(e5)
 	--Quick Effect: Discard this card, then target 1 "Fate" monster you control
 	local e6=Effect.CreateEffect(c)
@@ -69,19 +59,14 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 end
 
 --Can be used as entire Ritual requirement (once per turn check)
+function s.ritfilter_mat(c)
+	return c:IsSetCard(0x989) and c:IsType(TYPE_RITUAL)
+end
 function s.rcon(e)
 	return Duel.GetFlagEffect(e:GetHandlerPlayer(),id+100)==0
 end
-function s.rituallv(e,c)
-	local lv=e:GetHandler():GetLevel()
-	if c:IsSetCard(0x989) and c:IsType(TYPE_RITUAL) then
-		return lv|RITPROC_GREATER|RITPROC_EQUAL
-	else
-		return lv
-	end
-end
 function s.regcon(e,tp,eg,ep,ev,re,r,rp)
-	return r==REASON_RITUAL
+	return r==REASON_RITUAL and e:GetLabelObject() and e:GetHandler():IsHasEffect(e:GetLabelObject():GetCode())
 end
 function s.regop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.RegisterFlagEffect(tp,id+100,RESET_PHASE+PHASE_END,0,1)
@@ -101,7 +86,7 @@ function s.qtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TARGET)
 	Duel.SelectTarget(tp,s.qtgfilter,tp,LOCATION_MZONE,0,1,1,nil)
 end
-function s.ritfilter(c,tc)
+function s.ritfilter_search(c,tc)
 	return c:IsSetCard(0x989) and c:IsType(TYPE_RITUAL) and c:IsMonster() and c:IsAbleToHand() and not c:IsCode(tc:GetCode())
 end
 function s.qop(e,tp,eg,ep,ev,re,r,rp)
@@ -115,7 +100,7 @@ function s.qop(e,tp,eg,ep,ev,re,r,rp)
 		--Return to hand and add 1 "Fate" Ritual Monster with different name
 		if Duel.SendtoHand(tc,nil,REASON_EFFECT)>0 and tc:IsLocation(LOCATION_HAND) then
 			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
-			local g=Duel.SelectMatchingCard(tp,s.ritfilter,tp,LOCATION_DECK,0,1,1,nil,tc)
+			local g=Duel.SelectMatchingCard(tp,s.ritfilter_search,tp,LOCATION_DECK,0,1,1,nil,tc)
 			if #g>0 then
 				Duel.SendtoHand(g,nil,REASON_EFFECT)
 				Duel.ConfirmCards(1-tp,g)
