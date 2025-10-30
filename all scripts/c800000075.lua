@@ -4,10 +4,11 @@ function s.initial_effect(c)
 	c:EnableReviveLimit()
 	--Ritual Summon procedure
 	Ritual.AddProcEqual{handler=c,filter=s.ritfilter,lv=c:GetLevel()}
-	--Effect 1: Add "Fate Servant Summoning Ritual" from Deck to hand
+
+	--Effect 1: Send 1 "Fate" monster to GY, then add "Servant Summoning Ritual"
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
-	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
+	e1:SetCategory(CATEGORY_TOGRAVE+CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_HAND)
 	e1:SetCountLimit(1,id)
@@ -15,6 +16,7 @@ function s.initial_effect(c)
 	e1:SetTarget(s.thtg)
 	e1:SetOperation(s.thop)
 	c:RegisterEffect(e1)
+
 	--Effect 2: Equip top card of Deck
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,1))
@@ -25,12 +27,14 @@ function s.initial_effect(c)
 	e2:SetTarget(s.eqtg)
 	e2:SetOperation(s.eqop)
 	c:RegisterEffect(e2)
+
 	--Effect 3: Return equipped cards to hand when this card leaves the field
 	local e3=Effect.CreateEffect(c)
 	e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
 	e3:SetCode(EVENT_LEAVE_FIELD_P)
 	e3:SetOperation(s.checkop)
 	c:RegisterEffect(e3)
+
 	local e3b=Effect.CreateEffect(c)
 	e3b:SetDescription(aux.Stringid(id,2))
 	e3b:SetCategory(CATEGORY_TOHAND)
@@ -42,6 +46,7 @@ function s.initial_effect(c)
 	e3b:SetTarget(s.rettg)
 	e3b:SetOperation(s.retop)
 	c:RegisterEffect(e3b)
+
 	--Effect 4: Equip opponent's monster destroyed by battle
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,3))
@@ -52,12 +57,14 @@ function s.initial_effect(c)
 	e4:SetTarget(s.btleqtg)
 	e4:SetOperation(s.btleqop)
 	c:RegisterEffect(e4)
+
 	--Effect 5: Special Summon "Fate Ascended Rider, Iskandar"
 	local e5=Effect.CreateEffect(c)
 	e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
 	e5:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e5:SetOperation(s.spreg)
 	c:RegisterEffect(e5)
+
 	local e6=Effect.CreateEffect(c)
 	e6:SetDescription(aux.Stringid(id,4))
 	e6:SetCategory(CATEGORY_SPECIAL_SUMMON)
@@ -72,6 +79,7 @@ function s.initial_effect(c)
 	e6:SetLabelObject(e5)
 	c:RegisterEffect(e6)
 end
+
 s.listed_names={99890010,800000076}
 s.ritual_spell_code=99890010
 
@@ -80,23 +88,41 @@ function s.ritfilter(c)
 	return c:IsCode(99890010)
 end
 
---Effect 1: Add "Fate Servant Summoning Ritual" from Deck
+--Effect 1: Send 1 "Fate" monster to GY, then add "Servant Summoning Ritual"
 function s.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return not e:GetHandler():IsPublic() end
 end
+
 function s.thfilter(c)
+	return c:IsSetCard(0x989) and c:IsType(TYPE_MONSTER) and c:IsAbleToGrave()
+end
+
+function s.thaddfilter(c)
 	return c:IsCode(99890010) and c:IsAbleToHand()
 end
+
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil) end
-	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
+	if chk==0 then 
+		return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil)
+		   and Duel.IsExistingMatchingCard(s.thaddfilter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,nil)
+	end
+	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,nil,1,tp,LOCATION_DECK)
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE)
 end
+
 function s.thop(e,tp,eg,ep,ev,re,r,rp)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+	-- Send 1 "Fate" monster from Deck to GY
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
 	local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil)
 	if #g>0 then
-		Duel.SendtoHand(g,nil,REASON_EFFECT)
-		Duel.ConfirmCards(1-tp,g)
+		Duel.SendtoGrave(g,REASON_EFFECT)
+	end
+	-- Add 1 "Servant Summoning Ritual" from Deck or GY to hand
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+	local g2=Duel.SelectMatchingCard(tp,s.thaddfilter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,1,nil)
+	if #g2>0 then
+		Duel.SendtoHand(g2,nil,REASON_EFFECT)
+		Duel.ConfirmCards(1-tp,g2)
 	end
 end
 
@@ -155,7 +181,6 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 		e1:SetValue(s.eqlimit)
 		e1:SetLabelObject(c)
 		tc:RegisterEffect(e1)
-		--Mark as equipped by Effect 2
 		tc:RegisterFlagEffect(id+100,RESET_EVENT+RESETS_STANDARD,0,0)
 	end
 end
@@ -208,7 +233,6 @@ function s.btleqop(e,tp,eg,ep,ev,re,r,rp)
 	local tc=Duel.GetFirstTarget()
 	if tc and tc:IsRelateToEffect(e) and tc:IsMonster() and c:IsRelateToEffect(e) and c:IsFaceup() then
 		if Duel.Equip(tp,tc,c) then
-			--Equip limit
 			local e1=Effect.CreateEffect(c)
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_EQUIP_LIMIT)
@@ -217,7 +241,6 @@ function s.btleqop(e,tp,eg,ep,ev,re,r,rp)
 			e1:SetValue(s.eqlimit)
 			e1:SetLabelObject(c)
 			tc:RegisterEffect(e1)
-			--Opponent cannot Summon cards with same name
 			local code=tc:GetCode()
 			local e2=Effect.CreateEffect(c)
 			e2:SetType(EFFECT_TYPE_FIELD)
