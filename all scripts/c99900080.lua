@@ -22,12 +22,12 @@ function c99900080.negcon(e,tp,eg,ep,ev,re,r,rp)
 end
 function c99900080.negtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
   if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,e:GetHandler()) 
-  and Duel.IsExistingMatchingCard(aux.disfilter1,tp,0,LOCATION_ONFIELD,1,nil) end
+  and Duel.IsExistingMatchingCard(Card.IsNegatableMonster,tp,0,LOCATION_ONFIELD,1,nil) end
   Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
 end
 function c99900080.negop(e,tp,eg,ep,ev,re,r,rp)
   if Duel.DiscardHand(tp,nil,1,1,REASON_EFFECT+REASON_DISCARD)~=0 then
-    local g=Duel.GetMatchingGroup(aux.disfilter1,tp,0,LOCATION_ONFIELD,nil)
+    local g=Duel.GetMatchingGroup(Card.IsNegatableMonster,tp,0,LOCATION_ONFIELD,nil)
     local tc=g:GetFirst()
     local ct=0
     while tc and tc:IsFaceup() and not tc:IsImmuneToEffect(e) do
