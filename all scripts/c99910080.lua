@@ -1,67 +1,105 @@
---YuYuYu Gyuuki
+--YuYuYu Gyuki
 --Scripted by Raivost
 function c99910080.initial_effect(c)
-  --(1) Give effect
+  c:EnableReviveLimit()
+  -- Cannot be Normal Summoned/Set or Special Summoned
+  local e0=Effect.CreateEffect(c)
+  e0:SetType(EFFECT_TYPE_SINGLE)
+  e0:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
+  e0:SetCode(EFFECT_SPSUMMON_CONDITION)
+  e0:SetValue(c99910080.splimit)
+  c:RegisterEffect(e0)
+  --(1) Discard to draw
   local e1=Effect.CreateEffect(c)
-  e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-  e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-  e1:SetCode(EVENT_BE_MATERIAL)
+  e1:SetDescription(aux.Stringid(99910080,0))
+  e1:SetCategory(CATEGORY_DRAW)
+  e1:SetType(EFFECT_TYPE_IGNITION)
+  e1:SetRange(LOCATION_HAND)
   e1:SetCountLimit(1,99910080)
-  e1:SetCondition(c99910080.mtcon)
-  e1:SetOperation(c99910080.mtop)
+  e1:SetCondition(c99910080.drcon)
+  e1:SetCost(c99910080.drcost)
+  e1:SetTarget(c99910080.drtg)
+  e1:SetOperation(c99910080.drop)
   c:RegisterEffect(e1)
-  --(2) Destroy replace
+  --(2) Grant effect when equipped
   local e2=Effect.CreateEffect(c)
-  e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-  e2:SetCode(EFFECT_DESTROY_REPLACE)
-  e2:SetRange(LOCATION_GRAVE)
-  e2:SetTarget(c99910080.dreptg)
-  e2:SetValue(c99910080.drepval)
-  e2:SetOperation(c99910080.drepop)
+  e2:SetType(EFFECT_TYPE_CONTINUOUS+EFFECT_TYPE_FIELD)
+  e2:SetCode(EVENT_ADJUST)
+  e2:SetRange(LOCATION_SZONE)
+  e2:SetOperation(c99910080.grantop)
   c:RegisterEffect(e2)
+  --(3) Destroy replace
+  local e3=Effect.CreateEffect(c)
+  e3:SetType(EFFECT_TYPE_CONTINUOUS+EFFECT_TYPE_EQUIP)
+  e3:SetCode(EFFECT_DESTROY_REPLACE)
+  e3:SetTarget(c99910080.reptg)
+  e3:SetOperation(c99910080.repop)
+  c:RegisterEffect(e3)
+  --(4) Equip limit - only 1 at a time
+  local e4=Effect.CreateEffect(c)
+  e4:SetType(EFFECT_TYPE_SINGLE)
+  e4:SetCode(EFFECT_EQUIP_LIMIT)
+  e4:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+  e4:SetValue(1)
+  c:RegisterEffect(e4)
 end
---(2) Give effect
-function c99910080.mtcon(e,tp,eg,ep,ev,re,r,rp)
-  return r==REASON_RITUAL
+
+-- Cannot be Normal Summoned/Set or Special Summoned
+function c99910080.splimit(e,se,sp,st)
+  return false
 end
-function c99910080.mtop(e,tp,eg,ep,ev,re,r,rp)
+
+--(1) Discard to draw
+function c99910080.drcon(e,tp,eg,ep,ev,re,r,rp)
+  return not Duel.IsEnvironment(99910070)
+end
+function c99910080.drcost(e,tp,eg,ep,ev,re,r,rp,chk)
+  if chk==0 then return e:GetHandler():IsDiscardable() end
+  Duel.SendtoGrave(e:GetHandler(),REASON_COST+REASON_DISCARD)
+end
+function c99910080.drtg(e,tp,eg,ep,ev,re,r,rp,chk)
+  if chk==0 then return Duel.IsPlayerCanDraw(tp,1) end
+  Duel.SetTargetPlayer(tp)
+  Duel.SetTargetParam(1)
+  Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,1)
+end
+function c99910080.drop(e,tp,eg,ep,ev,re,r,rp)
+  local p,d=Duel.GetChainInfo(0,CHAININFO_TARGET_PLAYER,CHAININFO_TARGET_PARAM)
+  Duel.Draw(p,d,REASON_EFFECT)
+end
+
+--(2) Grant effect to equipped monster
+function c99910080.grantop(e,tp,eg,ep,ev,re,r,rp)
   local c=e:GetHandler()
-  local g=eg:Filter(Card.IsSetCard,nil,0x991)
-  local rc=g:GetFirst()
-  if not rc then return end
-  --(1.1) Gain ATK
-  local e1=Effect.CreateEffect(c)
-  e1:SetDescription(aux.Stringid(99910080,1))
-  e1:SetCategory(CATEGORY_ATKCHANGE)
-  e1:SetType(EFFECT_TYPE_TRIGGER_F+EFFECT_TYPE_SINGLE)
-  e1:SetCode(EVENT_PRE_DAMAGE_CALCULATE)
-  e1:SetCondition(c99910080.atkcon)
-  e1:SetTarget(c99910080.atktg)
-  e1:SetOperation(c99910080.atkop)
-  e1:SetReset(RESET_EVENT+0x1fe0000)
-  rc:RegisterEffect(e1,true)
-  if not rc:IsType(TYPE_EFFECT) then
-    local e2=Effect.CreateEffect(c)
-    e2:SetType(EFFECT_TYPE_SINGLE)
-    e2:SetCode(EFFECT_ADD_TYPE)
-    e2:SetValue(TYPE_EFFECT)
-    e2:SetReset(RESET_EVENT+0x1fe0000)
-    rc:RegisterEffect(e2,true)
+  local ec=c:GetEquipTarget()
+  if not ec then return end
+  
+  -- Check if equipped to non-Fairy YuYuYu monster
+  if ec:IsSetCard(0x991) and not ec:IsRace(RACE_FAIRY) then
+    if ec:GetFlagEffect(99910080)==0 then
+      -- Register the effect
+      local e1=Effect.CreateEffect(c)
+      e1:SetDescription(aux.Stringid(99910080,1))
+      e1:SetCategory(CATEGORY_ATKCHANGE)
+      e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+      e1:SetCode(EVENT_PRE_DAMAGE_CALCULATE)
+      e1:SetCondition(c99910080.atkcon)
+      e1:SetOperation(c99910080.atkop)
+      e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+      ec:RegisterEffect(e1)
+      ec:RegisterFlagEffect(99910080,RESET_EVENT+RESETS_STANDARD,0,1)
+    end
   end
-  rc:RegisterFlagEffect(0,RESET_EVENT+0x1fe0000,EFFECT_FLAG_CLIENT_HINT,1,0,aux.Stringid(99910080,0))
 end
---(1.1) Gain ATK
+
+--(2.1) ATK gain during damage calculation
 function c99910080.atkcon(e,tp,eg,ep,ev,re,r,rp)
   return e:GetHandler():GetBattleTarget()~=nil
-end
-function c99910080.atktg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return true end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
 end
 function c99910080.atkop(e,tp,eg,ep,ev,re,r,rp)
   local c=e:GetHandler()
   if c:IsFaceup() and c:IsRelateToEffect(e) then
-    local e1=Effect.CreateEffect(c)
+    local e1=Effect.CreateEffect(e:GetHandler())
     e1:SetType(EFFECT_TYPE_SINGLE)
     e1:SetCode(EFFECT_UPDATE_ATTACK)
     e1:SetReset(RESET_PHASE+PHASE_DAMAGE_CAL)
@@ -69,20 +107,15 @@ function c99910080.atkop(e,tp,eg,ep,ev,re,r,rp)
     c:RegisterEffect(e1)
   end
 end
---(2) Destroy replace
-function c99910080.drepfilter(c,tp)
-  return c:IsFaceup() and c:IsSetCard(0x991) and bit.band(c:GetType(),0x81)==0x81 and c:IsControler(tp)
-  and c:IsLocation(LOCATION_MZONE) and not c:IsReason(REASON_REPLACE) and c:IsReason(REASON_EFFECT+REASON_BATTLE)
+
+--(3) Destroy replace
+function c99910080.reptg(e,tp,eg,ep,ev,re,r,rp,chk)
+  local c=e:GetHandler()
+  local tg=c:GetEquipTarget()
+  if chk==0 then return tg and not tg:IsReason(REASON_REPLACE) 
+    and tg:IsReason(REASON_BATTLE+REASON_EFFECT) end
+  return true
 end
-function c99910080.dreptg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return e:GetHandler():IsAbleToRemove() and eg:IsExists(c99910080.drepfilter,1,nil,tp) and eg:GetCount()==1 
-  and Duel.GetFlagEffect(tp,99910081)==0 end
-  return Duel.SelectEffectYesNo(tp,e:GetHandler(),96)
-end
-function c99910080.drepval(e,c)
-  return c99910080.drepfilter(c,e:GetHandlerPlayer())
-end
-function c99910080.drepop(e,tp,eg,ep,ev,re,r,rp)
-  Duel.Remove(e:GetHandler(),POS_FACEUP,REASON_EFFECT)
-  Duel.RegisterFlagEffect(tp,99910081,RESET_PHASE+PHASE_END,0,1)
+function c99910080.repop(e,tp,eg,ep,ev,re,r,rp)
+  Duel.Destroy(e:GetHandler(),REASON_EFFECT+REASON_REPLACE)
 end
