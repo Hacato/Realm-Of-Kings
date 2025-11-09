@@ -163,7 +163,7 @@ end
 
 -- Quick Effect: Negate card
 function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-  if chk==0 then return Duel.IsExistingTarget(aux.disfilter1,tp,0,LOCATION_ONFIELD,1,nil) end
+  if chk==0 then return Duel.IsExistingTarget(Card.IsNegatableMonster,tp,0,LOCATION_ONFIELD,1,nil) end
   Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
   local g=Duel.SelectTarget(tp,Card.IsNegatableMonster,tp,0,LOCATION_ONFIELD,1,1,nil)
   Duel.SetOperationInfo(0,CATEGORY_DISABLE,g,1,0,0)

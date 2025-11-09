@@ -28,43 +28,27 @@ function c99910070.initial_effect(c)
   e2:SetTarget(c99910070.eqtg)
   e2:SetOperation(c99910070.eqop)
   c:RegisterEffect(e2)
-  --(3) Gain LP
+  --(3) Gain LP when equipped monster sent to GY
   local e3=Effect.CreateEffect(c)
   e3:SetDescription(aux.Stringid(99910070,2))
   e3:SetCategory(CATEGORY_RECOVER)
   e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
-  e3:SetCode(EVENT_PHASE+PHASE_END)
+  e3:SetCode(EVENT_TO_GRAVE)
   e3:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
   e3:SetRange(LOCATION_FZONE)
-  e3:SetCountLimit(1)
+  e3:SetCondition(c99910070.reccon)
   e3:SetTarget(c99910070.rectg)
   e3:SetOperation(c99910070.recop)
   c:RegisterEffect(e3)
-  --Counter
-  if not c99910070.global_check then
-    c99910070.global_check=true
-    c99910070[0]=0
-    c99910070[1]=0
-    local e4=Effect.CreateEffect(c)
-    e4:SetType(EFFECT_TYPE_CONTINUOUS+EFFECT_TYPE_FIELD)
-    e4:SetCode(EVENT_DESTROYED)
-    e4:SetOperation(c99910070.addcount)
-    Duel.RegisterEffect(e4,0)
-    local e5=Effect.CreateEffect(c)
-    e5:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-    e5:SetCode(EVENT_PHASE_START+PHASE_DRAW)
-    e5:SetOperation(c99910070.clearop)
-    Duel.RegisterEffect(e5,0)
-  end
 end
 --(1) Search
 function c99910070.thcostfilter(c)
   return c:IsSetCard(0x991) and c:IsRace(RACE_FAIRY) and c:IsAbleToGraveAsCost()
 end
 function c99910070.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.IsExistingMatchingCard(c99910070.thcostfilter,tp,LOCATION_HAND+LOCATION_DECK,0,1,nil) end
+  if chk==0 then return Duel.IsExistingMatchingCard(c99910070.thcostfilter,tp,LOCATION_HAND,0,1,nil) end
   Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
-  local g=Duel.SelectMatchingCard(tp,c99910070.thcostfilter,tp,LOCATION_HAND+LOCATION_DECK,0,1,1,nil)
+  local g=Duel.SelectMatchingCard(tp,c99910070.thcostfilter,tp,LOCATION_HAND,0,1,1,nil)
   Duel.SendtoGrave(g,REASON_COST)
 end
 function c99910070.thfilter(c)
@@ -123,42 +107,24 @@ function c99910070.eqlimit(e,c)
   return c==e:GetLabelObject()
 end
 --(3) Gain LP
+function c99910070.recconfilter(c,tp)
+  return c:IsPreviousLocation(LOCATION_SZONE) and c:GetPreviousTypeOnField()&TYPE_EQUIP~=0
+    and c:IsSetCard(0x991) and c:IsRace(RACE_FAIRY) and c:IsPreviousControler(tp)
+    and c:GetPreviousEquipTarget() and c:GetPreviousEquipTarget():IsSetCard(0x991)
+end
+function c99910070.reccon(e,tp,eg,ep,ev,re,r,rp)
+  return eg:IsExists(c99910070.recconfilter,1,nil,tp)
+end
 function c99910070.rectg(e,tp,eg,ep,ev,re,r,rp,chk)
   if chk==0 then return true end
   Duel.SetTargetPlayer(tp)
   Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_RECOVER,nil,0,tp,500*c99910070[tp])
+  local ct=eg:FilterCount(c99910070.recconfilter,nil,tp)
+  Duel.SetOperationInfo(0,CATEGORY_RECOVER,nil,0,tp,500*ct)
 end
 function c99910070.recop(e,tp,eg,ep,ev,re,r,rp)
   if not e:GetHandler():IsRelateToEffect(e) then return end
   local p=Duel.GetChainInfo(0,CHAININFO_TARGET_PLAYER)
-  Duel.Recover(p,500*c99910070[tp],REASON_EFFECT)
-end
---Counter
-function c99910070.counterfilter(c,tp)
-  return c:IsType(TYPE_MONSTER) and c:IsReason(REASON_EFFECT)
-end
-function c99910070.addcount(e,tp,eg,ep,ev,re,r,rp)
-  local tc=eg:GetFirst()
-  while tc do
-    if tc:IsReason(REASON_BATTLE) then
-      local rc=tc:GetReasonCard()
-      if rc and rc:IsSetCard(0x991) and rc:IsType(TYPE_RITUAL) and rc:IsRelateToBattle() then
-        local p=rc:GetReasonPlayer()
-        c99910070[p]=c99910070[p]+1
-      end
-    elseif re then
-      local rc=re:GetHandler()
-      if eg:IsExists(c99910070.counterfilter,1,nil,tp) and rc and rc:IsSetCard(0x991) 
-      and rc:IsType(TYPE_RITUAL) and re:IsActiveType(TYPE_MONSTER) then
-        local p=rc:GetReasonPlayer()
-        c99910070[p]=c99910070[p]+1
-      end
-    end
-    tc=eg:GetNext()
-  end
-end
-function c99910070.clearop(e,tp,eg,ep,ev,re,r,rp)
-  c99910070[0]=0
-  c99910070[1]=0
+  local ct=eg:FilterCount(c99910070.recconfilter,nil,tp)
+  Duel.Recover(p,500*ct,REASON_EFFECT)
 end

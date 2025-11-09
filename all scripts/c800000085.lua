@@ -1,4 +1,4 @@
---YuYuYu Inugami
+--YuYuYu Kodama
 --Scripted by Raivost + corrected to match effect
 local s,id=GetID()
 function s.initial_effect(c)
@@ -48,14 +48,17 @@ function s.initial_effect(c)
   e4:SetLabelObject(e3)
   c:RegisterEffect(e4)
   
-  --(4) Granted effect: ATK gain at start of Damage Step
+  --(4) Granted Quick Effect: Prevent tribute/material use
   local e5=Effect.CreateEffect(c)
   e5:SetDescription(aux.Stringid(id,2))
-  e5:SetCategory(CATEGORY_ATKCHANGE)
-  e5:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
-  e5:SetCode(EVENT_BATTLE_START)
-  e5:SetCondition(s.atkcon)
-  e5:SetOperation(s.atkop)
+  e5:SetCategory(CATEGORY_DISABLE)
+  e5:SetType(EFFECT_TYPE_QUICK_O)
+  e5:SetCode(EVENT_FREE_CHAIN)
+  e5:SetProperty(EFFECT_FLAG_CARD_TARGET)
+  e5:SetRange(LOCATION_MZONE)
+  e5:SetCountLimit(1)
+  e5:SetTarget(s.distg)
+  e5:SetOperation(s.disop)
   e4:SetLabelObject(e5)
   
   --(5) Redirect destruction
@@ -65,7 +68,7 @@ function s.initial_effect(c)
   e6:SetValue(s.repval)
   c:RegisterEffect(e6)
   
-  --(6) Only 1 Inugami per monster
+  --(6) Only 1 Kodama per monster
   local e7=Effect.CreateEffect(c)
   e7:SetType(EFFECT_TYPE_SINGLE)
   e7:SetCode(EFFECT_EQUIP_LIMIT)
@@ -120,21 +123,26 @@ function s.eftg(e,c)
   return e:GetHandler():GetEquipTarget()==c
 end
 
---(4) Granted ATK gain effect
-function s.atkcon(e,tp,eg,ep,ev,re,r,rp)
-  local c=e:GetHandler()
-  local bc=c:GetBattleTarget()
-  return bc and bc:IsControler(1-tp) and bc:IsSummonLocation(LOCATION_EXTRA)
+--(4) Granted Quick Effect
+function s.distg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+  if chkc then return chkc:IsControler(1-tp) and chkc:IsLocation(LOCATION_MZONE) and chkc:IsFaceup() end
+  if chk==0 then return Duel.IsExistingTarget(Card.IsFaceup,tp,0,LOCATION_MZONE,1,nil) end
+  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TARGET)
+  Duel.SelectTarget(tp,Card.IsFaceup,tp,0,LOCATION_MZONE,1,1,nil)
 end
-function s.atkop(e,tp,eg,ep,ev,re,r,rp)
-  local c=e:GetHandler()
-  if c:IsFaceup() and c:IsRelateToEffect(e) then
-    local e1=Effect.CreateEffect(c)
+function s.disop(e,tp,eg,ep,ev,re,r,rp)
+  local tc=Duel.GetFirstTarget()
+  if tc and tc:IsRelateToEffect(e) and tc:IsFaceup() then
+    local e1=Effect.CreateEffect(e:GetHandler())
     e1:SetType(EFFECT_TYPE_SINGLE)
-    e1:SetCode(EFFECT_UPDATE_ATTACK)
-    e1:SetValue(c:GetBaseAttack())
-    e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_DAMAGE)
-    c:RegisterEffect(e1)
+    e1:SetCode(EFFECT_CANNOT_BE_MATERIAL)
+    e1:SetValue(1)
+    e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
+    tc:RegisterEffect(e1)
+    local e2=e1:Clone()
+    e2:SetCode(EFFECT_UNRELEASABLE_NONSUM)
+    e2:SetValue(1)
+    tc:RegisterEffect(e2)
   end
 end
 

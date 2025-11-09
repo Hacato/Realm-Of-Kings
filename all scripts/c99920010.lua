@@ -123,7 +123,7 @@ function c99920010.unfilter(e,re)
 end
 --(4) Activate "Ruler of Death"
 function c99920010.acfcon(e,tp,eg,ep,ev,re,r,rp)
-  return Duel.GetFieldCard(tp,LOCATION_SZONE,5)==nil
+  return Duel.GetFieldCard(tp,LOCATION_FZONE,5)==nil
 end
 function c99920010.acffilter(c,tp)
   return c:IsCode(99920020) and c:GetActivateEffect():IsActivatable(tp)
@@ -136,12 +136,12 @@ function c99920010.acfop(e,tp,eg,ep,ev,re,r,rp)
   Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOFIELD)
   local tc=Duel.GetFirstMatchingCard(c99920010.acffilter,tp,LOCATION_DECK,0,nil,tp)
   if tc then
-    local fc=Duel.GetFieldCard(tp,LOCATION_SZONE,5)
+    local fc=Duel.GetFieldCard(tp,LOCATION_FZONE,5)
     if fc then
       Duel.SendtoGrave(fc,REASON_RULE)
       Duel.BreakEffect()
     end
-    Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
+    Duel.MoveToField(tc,tp,tp,LOCATION_FZONE,POS_FACEUP,true)
     local te=tc:GetActivateEffect()
     local tep=tc:GetControler()
     local cost=te:GetCost()
