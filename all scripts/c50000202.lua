@@ -1,14 +1,14 @@
 --Yoyo Dino Energetic Yellow
 local s,id=GetID()
 function s.initial_effect(c)
-	aux.EnableGeminiAttribute(c)
+	Gemini.AddProcedure(c)
 	--code
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e1:SetRange(LOCATION_MZONE)
 	e1:SetCode(EFFECT_CHANGE_CODE)
-	e1:SetCondition(aux.IsGeminiState)
+	e1:SetCondition(Gemini.EffectStatusCondition)
 	e1:SetValue(50000191)
 	c:RegisterEffect(e1)
 	--battle indes
@@ -18,7 +18,7 @@ function s.initial_effect(c)
 	e2:SetRange(LOCATION_MZONE)
 	e2:SetCode(EFFECT_INDESTRUCTABLE_COUNT)
 	e2:SetCountLimit(1)
-	e2:SetCondition(aux.IsDualState)
+	e2:SetCondition(Gemini.EffectStatusCondition)
 	e2:SetValue(s.valcon)
 	c:RegisterEffect(e2)
 end

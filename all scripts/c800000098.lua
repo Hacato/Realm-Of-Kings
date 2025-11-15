@@ -44,14 +44,25 @@ function s.initial_effect(c)
 	e5:SetTarget(s.sptg)
 	e5:SetOperation(s.spop)
 	c:RegisterEffect(e5)
+	--Send to GY and activate another "Blisstopia" Field Spell
+	local e6=Effect.CreateEffect(c)
+	e6:SetDescription(aux.Stringid(id,2))
+	e6:SetCategory(CATEGORY_TOGRAVE)
+	e6:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+	e6:SetCode(EVENT_PHASE+PHASE_END)
+	e6:SetRange(LOCATION_FZONE)
+	e6:SetCountLimit(1,{id,2})
+	e6:SetCondition(s.actcon)
+	e6:SetTarget(s.acttg)
+	e6:SetOperation(s.actop)
+	c:RegisterEffect(e6)
 end
 s.listed_series={0x1568,0x1569} --Constructor, Blisstopia
-
+s.listed_names={id}
 --ATK/DEF target: EARTH Wyrm monsters you control
 function s.atktg(e,c)
 	return c:IsRace(RACE_WYRM) and c:IsAttribute(ATTRIBUTE_EARTH)
 end
-
 --Add Spell/Trap: check if a "Constructor" monster was Special Summoned
 function s.cfilter(c,tp)
 	return c:IsFaceup() and c:IsSetCard(0x1568) and c:IsControler(tp)
@@ -74,7 +85,6 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ConfirmCards(1-tp,g)
 	end
 end
-
 --Special Summon condition: destroyed in Field Zone by card effect
 function s.spcon(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
@@ -94,5 +104,39 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_HAND+LOCATION_GRAVE,0,1,1,nil,e,tp)
 	if #g>0 then
 		Duel.SpecialSummon(g,0,tp,tp,false,false,POS_DEFENSE)
+	end
+end
+--Activate another "Blisstopia" Field Spell
+function s.actcon(e,tp,eg,ep,ev,re,r,rp)
+	return Duel.IsTurnPlayer(tp)
+end
+function s.actfilter(c,tp)
+	return c:IsSetCard(0x1569) and c:IsType(TYPE_FIELD) and not c:IsCode(id) 
+		and c:GetActivateEffect():IsActivatable(tp,true,true)
+end
+function s.acttg(e,tp,eg,ep,ev,re,r,rp,chk)
+	local c=e:GetHandler()
+	if chk==0 then return c:IsAbleToGrave() 
+		and Duel.IsExistingMatchingCard(s.actfilter,tp,LOCATION_DECK,0,1,nil,tp) end
+	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,c,1,0,0)
+end
+function s.actop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	if not c:IsRelateToEffect(e) or Duel.SendtoGrave(c,REASON_EFFECT)==0 or not c:IsLocation(LOCATION_GRAVE) then return end
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOFIELD)
+	local tc=Duel.SelectMatchingCard(tp,s.actfilter,tp,LOCATION_DECK,0,1,1,nil,tp):GetFirst()
+	if tc then
+		local te=tc:GetActivateEffect()
+		local fc=Duel.GetFieldCard(tp,LOCATION_FZONE,0)
+		if fc then
+			Duel.SendtoGrave(fc,REASON_RULE)
+			Duel.BreakEffect()
+		end
+		Duel.MoveToField(tc,tp,tp,LOCATION_FZONE,POS_FACEUP,true)
+		te:UseCountLimit(tp,1,true)
+		local tep=tc:GetControler()
+		local cost=te:GetCost()
+		if cost then cost(te,tep,eg,ep,ev,re,r,rp,1) end
+		Duel.RaiseEvent(tc,4179255,te,0,tp,tp,Duel.GetCurrentChain())
 	end
 end

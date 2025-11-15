@@ -13,7 +13,6 @@ function s.initial_effect(c)
 	c:RegisterEffect(e1)
 end
 s.listed_series={0x1568,0x1569} --Constructor, Blisstopia
-
 --Add filter: "Constructor" monster
 function s.thfilter(c)
 	return c:IsSetCard(0x1568) and c:IsMonster() and c:IsAbleToHand()
@@ -29,15 +28,20 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	if Duel.DiscardDeck(tp,1,REASON_EFFECT)==0 then return end
 	
 	local blisstopia=Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsSetCard,0x1569),tp,LOCATION_FZONE,LOCATION_FZONE,1,nil)
-	local ct=blisstopia and 2 or 1
+	local dg=Duel.GetMatchingGroup(s.thfilter,tp,LOCATION_DECK,0,nil)
+	local g=nil
 	
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
-	local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,ct,nil)
-	if #g>0 then
-		--If selecting 2, must have different names
-		if #g==2 and g:GetFirst():IsCode(g:GetNext():GetCode()) then
-			return
-		end
+	if blisstopia and #dg>=2 then
+		--Select up to 2 with different names
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+		g=aux.SelectUnselectGroup(dg,e,tp,1,2,aux.dncheck,1,tp,HINTMSG_ATOHAND)
+	else
+		--Select 1
+		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+		g=dg:Select(tp,1,1,nil)
+	end
+	
+	if g and #g>0 then
 		Duel.SendtoHand(g,nil,REASON_EFFECT)
 		Duel.ConfirmCards(1-tp,g)
 	end
