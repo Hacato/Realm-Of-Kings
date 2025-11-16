@@ -20,14 +20,15 @@ function s.initial_effect(c)
 	e1:SetValue(s.eqlimit)
 	c:RegisterEffect(e1)
 	
-	--Equip from Deck/GY when Ashened Fusion is summoned
+	--Equip from Hand/GY when Ashened Fusion is summoned
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,0))
 	e2:SetCategory(CATEGORY_EQUIP)
 	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e2:SetProperty(EFFECT_FLAG_DELAY)
-	e2:SetRange(LOCATION_DECK+LOCATION_GRAVE)
+	e2:SetRange(LOCATION_HAND+LOCATION_GRAVE)
+	e2:SetCountLimit(1,id)
 	e2:SetCondition(s.equipcon)
 	e2:SetTarget(s.equiptg)
 	e2:SetOperation(s.equipop)
@@ -40,7 +41,8 @@ function s.initial_effect(c)
 	e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e3:SetCode(EVENT_TO_GRAVE)
 	e3:SetProperty(EFFECT_FLAG_DELAY)
-	e3:SetCountLimit(1,id)
+	e3:SetCountLimit(1,{id,1})
+	e3:SetCondition(s.spcon)
 	e3:SetTarget(s.sptg)
 	e3:SetOperation(s.spop)
 	c:RegisterEffect(e3)
@@ -52,8 +54,6 @@ function s.initial_effect(c)
 	e4:SetRange(LOCATION_SZONE)
 	e4:SetOperation(s.protectop)
 	c:RegisterEffect(e4)
-	
-	--Removed Quick Effect from here - it will be granted to the equipped monster instead
 end
 
 --Manual equip target
@@ -73,9 +73,9 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 
---Equip limit: DARK or PYRO
+--Equip limit: DARK AND PYRO (changed from OR to AND)
 function s.eqlimit(e,c)
-	return c:IsAttribute(ATTRIBUTE_DARK) or c:IsRace(RACE_PYRO)
+	return c:IsAttribute(ATTRIBUTE_DARK) and c:IsRace(RACE_PYRO)
 end
 
 --Protection effects operation
@@ -84,11 +84,11 @@ function s.protectop(e,tp,eg,ep,ev,re,r,rp)
 	local tc=c:GetEquipTarget()
 	if not tc or eg:GetFirst()~=c then return end
 	
-	--Cannot be released
+	--Cannot leave the field (complete protection)
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_CANNOT_RELEASE)
-	e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END,2)
+	e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 	tc:RegisterEffect(e1)
 	--Cannot be tributed
 	local e2=e1:Clone()
@@ -116,11 +116,12 @@ function s.protectop(e,tp,eg,ep,ev,re,r,rp)
 	e7:SetCode(EFFECT_CANNOT_BE_LINK_MATERIAL)
 	e7:SetValue(1)
 	tc:RegisterEffect(e7)
-	--Cannot be destroyed
+	--Cannot be destroyed by battle
 	local e8=e1:Clone()
 	e8:SetCode(EFFECT_INDESTRUCTABLE_BATTLE)
 	e8:SetValue(1)
 	tc:RegisterEffect(e8)
+	--Cannot be destroyed by effect
 	local e9=e1:Clone()
 	e9:SetCode(EFFECT_INDESTRUCTABLE_EFFECT)
 	e9:SetValue(1)
@@ -135,20 +136,34 @@ function s.protectop(e,tp,eg,ep,ev,re,r,rp)
 	e11:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
 	e11:SetValue(1)
 	tc:RegisterEffect(e11)
+	--Cannot be sent to GY (except by this card's own effect)
+	local e12=e1:Clone()
+	e12:SetCode(EFFECT_CANNOT_TO_GRAVE)
+	e12:SetValue(1)
+	tc:RegisterEffect(e12)
+	--Cannot be returned to hand/deck
+	local e13=e1:Clone()
+	e13:SetCode(EFFECT_CANNOT_TO_HAND)
+	e13:SetValue(1)
+	tc:RegisterEffect(e13)
+	local e14=e1:Clone()
+	e14:SetCode(EFFECT_CANNOT_TO_DECK)
+	e14:SetValue(1)
+	tc:RegisterEffect(e14)
 	
 	--Grant Quick Effect to the equipped monster
-	local e12=Effect.CreateEffect(c)
-	e12:SetDescription(aux.Stringid(id,2))
-	e12:SetCategory(CATEGORY_DESTROY+CATEGORY_HANDES)
-	e12:SetType(EFFECT_TYPE_QUICK_O)
-	e12:SetCode(EVENT_CHAINING)
-	e12:SetRange(LOCATION_MZONE)
-	e12:SetCountLimit(1)
-	e12:SetCondition(s.qecon)
-	e12:SetTarget(s.qetg)
-	e12:SetOperation(s.qeop)
-	e12:SetReset(RESET_EVENT+RESETS_STANDARD)
-	tc:RegisterEffect(e12)
+	local e15=Effect.CreateEffect(c)
+	e15:SetDescription(aux.Stringid(id,2))
+	e15:SetCategory(CATEGORY_DESTROY+CATEGORY_HANDES)
+	e15:SetType(EFFECT_TYPE_QUICK_O)
+	e15:SetCode(EVENT_CHAINING)
+	e15:SetRange(LOCATION_MZONE)
+	e15:SetCountLimit(1)
+	e15:SetCondition(s.qecon)
+	e15:SetTarget(s.qetg)
+	e15:SetOperation(s.qeop)
+	e15:SetReset(RESET_EVENT+RESETS_STANDARD)
+	tc:RegisterEffect(e15)
 end
 
 --Condition: Ashened Fusion Monster summoned
@@ -160,19 +175,19 @@ function s.cfilter(c,tp)
 	return c:IsSetCard(0x1a5) and c:IsType(TYPE_FUSION) and c:IsControler(tp) and c:IsFaceup()
 end
 
---Filter for equip target
+--Filter for equip target (DARK AND PYRO)
 function s.eqfilter(c)
-	return c:IsFaceup() and (c:IsAttribute(ATTRIBUTE_DARK) or c:IsRace(RACE_PYRO))
+	return c:IsFaceup() and c:IsAttribute(ATTRIBUTE_DARK) and c:IsRace(RACE_PYRO)
 end
 
---Target for equip from Deck/GY
+--Target for equip from Hand/GY
 function s.equiptg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 		and Duel.IsExistingMatchingCard(s.eqfilter,tp,LOCATION_MZONE,0,1,nil) end
 	Duel.SetOperationInfo(0,CATEGORY_EQUIP,e:GetHandler(),1,0,0)
 end
 
---Operation: Equip from Deck/GY
+--Operation: Equip from Hand/GY
 function s.equipop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	if not c:IsRelateToEffect(e) then return end
@@ -185,23 +200,32 @@ function s.equipop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 
---Filter for Special Summon
-function s.spfilter(c,e,tp)
-	return (c:IsAttribute(ATTRIBUTE_DARK) or c:IsRace(RACE_PYRO)) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
+--Condition for Special Summon (must be sent from field)
+function s.spcon(e,tp,eg,ep,ev,re,r,rp)
+	return e:GetHandler():IsPreviousLocation(LOCATION_ONFIELD)
+end
+
+--Filter for Special Summon (DARK AND PYRO, excluding previously equipped)
+function s.spfilter(c,e,tp,exc)
+	return c:IsAttribute(ATTRIBUTE_DARK) and c:IsRace(RACE_PYRO)
+		and c:IsCanBeSpecialSummoned(e,0,tp,false,false) and c~=exc
 end
 
 --Target for Special Summon from GY
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
+	local exc=e:GetHandler():GetPreviousEquipTarget()
 	if chk==0 then return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp) end
+		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp,exc) end
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_GRAVE)
+	e:SetLabelObject(exc)
 end
 
 --Operation: Special Summon
 function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
+	local exc=e:GetLabelObject()
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
+	local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(s.spfilter),tp,LOCATION_GRAVE,0,1,1,nil,e,tp,exc)
 	if #g>0 then
 		Duel.SpecialSummon(g,0,tp,tp,false,false,POS_FACEUP)
 	end
@@ -219,9 +243,7 @@ function s.qecon(e,tp,eg,ep,ev,re,r,rp)
 		end
 	end
 	
-	--Check if it affects monsters without targeting (like Raigeki, Dark Hole, etc.)
-	local c=re:GetHandler()
-	--Check for common categories that affect monsters
+	--Check if it affects monsters without targeting
 	if re:IsHasCategory(CATEGORY_DESTROY) or re:IsHasCategory(CATEGORY_REMOVE) 
 		or re:IsHasCategory(CATEGORY_TOHAND) or re:IsHasCategory(CATEGORY_TODECK)
 		or re:IsHasCategory(CATEGORY_TOGRAVE) or re:IsHasCategory(CATEGORY_CONTROL)
