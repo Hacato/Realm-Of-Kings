@@ -96,7 +96,7 @@ end
 --E2: Replacement effect - Special Summon instead of going to GY
 function s.reptg(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()
-	if chk==0 then return c:IsLocation(LOCATION_HAND)
+	if chk==0 then return c:IsLocation(LOCATION_HAND) and c:GetDestination()==LOCATION_GRAVE
 		and Duel.GetLocationCount(tp,LOCATION_MZONE)>0
 		and c:IsCanBeSpecialSummoned(e,0,tp,false,false) end
 	return Duel.SelectYesNo(tp,aux.Stringid(id,1))
@@ -143,7 +143,6 @@ function s.scxyzcon(e,tp,eg,ep,ev,re,r,rp)
 	local ph=Duel.GetCurrentPhase()
 	return e:GetHandler():GetFlagEffect(id+300)>0 and Duel.GetTurnPlayer()==1-tp
 		and (ph==PHASE_MAIN1 or ph==PHASE_MAIN2 or ph==PHASE_BATTLE)
-		and not Duel.IsPhase(PHASE_DAMAGE)
 end
 
 --E4: Filter for "SZS" Extra Deck monsters

@@ -73,19 +73,23 @@ function s.spcon1(e,c)
 		and c:GetFlagEffect(id)>0
 end
 
---E2: Replacement effect - Special Summon instead of going to GY
+-----------------------------------------
+-- E2: Replacement Effect (from hand → summon instead)
+-----------------------------------------
 function s.reptg(e,tp,eg,ep,ev,re,r,rp,chk)
-	local c=e:GetHandler()
-	if chk==0 then return c:IsLocation(LOCATION_HAND)
-		and Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-		and c:IsCanBeSpecialSummoned(e,0,tp,false,false) end
-	return Duel.SelectYesNo(tp,aux.Stringid(id,1))
+    local c=e:GetHandler()
+    if chk==0 then
+        return c:IsLocation(LOCATION_HAND) and c:GetDestination()==LOCATION_GRAVE
+            and Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+            and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
+    end
+    return Duel.SelectYesNo(tp,aux.Stringid(id,1))
 end
 function s.repop(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	if Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)>0 then
-		Duel.Draw(tp,1,REASON_EFFECT)
-	end
+    local c=e:GetHandler()
+    if Duel.SpecialSummon(c,0,tp,tp,false,false,POS_FACEUP)>0 then
+        Duel.Draw(tp,1,REASON_EFFECT)
+    end
 end
 
 --E3: Damage on attack, then discard

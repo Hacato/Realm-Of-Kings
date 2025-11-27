@@ -75,12 +75,11 @@ end
 function s.reptg(e,tp,eg,ep,ev,re,r,rp,chk)
     local c=e:GetHandler()
     if chk==0 then
-        return c:IsLocation(LOCATION_HAND)
-            and c:IsReason(REASON_DISCARD+REASON_COST+REASON_EFFECT)
+        return c:IsLocation(LOCATION_HAND) and c:GetDestination()==LOCATION_GRAVE
             and Duel.GetLocationCount(tp,LOCATION_MZONE)>0
             and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
     end
-    return Duel.SelectYesNo(tp,aux.Stringid(id,0))
+    return Duel.SelectYesNo(tp,aux.Stringid(id,1))
 end
 function s.repop(e,tp,eg,ep,ev,re,r,rp)
     local c=e:GetHandler()
