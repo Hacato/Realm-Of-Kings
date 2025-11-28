@@ -18,20 +18,32 @@ function c800000084.filter(c,e,tp)
 end
 function c800000084.target(e,tp,eg,ep,ev,re,r,rp,chk)
   if chk==0 then
-    local ft=Duel.GetLocationCount(tp,LOCATION_MZONE)
-    if ft<=0 then return false end
-    return Duel.IsExistingMatchingCard(c800000084.filter,tp,LOCATION_HAND,0,1,nil,e,tp)
-      or Duel.IsExistingMatchingCard(aux.AND(c800000084.filter,Card.IsFaceup),tp,LOCATION_EXTRA,0,1,nil,e,tp)
+    -- Check if there's a monster that can be summoned
+    local hand_check=Duel.GetLocationCount(tp,LOCATION_MZONE)>0 
+      and Duel.IsExistingMatchingCard(c800000084.filter,tp,LOCATION_HAND,0,1,nil,e,tp)
+    local extra_check=Duel.GetLocationCountFromEx(tp)>0 
+      and Duel.IsExistingMatchingCard(aux.AND(c800000084.filter,Card.IsFaceup),tp,LOCATION_EXTRA,0,1,nil,e,tp)
+    return hand_check or extra_check
   end
   Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_HAND|LOCATION_EXTRA)
 end
 function c800000084.activate(e,tp,eg,ep,ev,re,r,rp)
-  if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
-  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-  local g=Duel.GetMatchingGroup(c800000084.filter,tp,LOCATION_HAND,0,nil,e,tp)
-  local eg=Duel.GetMatchingGroup(aux.AND(c800000084.filter,Card.IsFaceup),tp,LOCATION_EXTRA,0,nil,e,tp)
-  g:Merge(eg)
+  local g=Group.CreateGroup()
+  
+  -- Add hand monsters if Main Monster Zone available
+  if Duel.GetLocationCount(tp,LOCATION_MZONE)>0 then
+    local hg=Duel.GetMatchingGroup(c800000084.filter,tp,LOCATION_HAND,0,nil,e,tp)
+    g:Merge(hg)
+  end
+  
+  -- Add Extra Deck monsters if Extra Monster Zone available
+  if Duel.GetLocationCountFromEx(tp)>0 then
+    local eg=Duel.GetMatchingGroup(aux.AND(c800000084.filter,Card.IsFaceup),tp,LOCATION_EXTRA,0,nil,e,tp)
+    g:Merge(eg)
+  end
+  
   if #g>0 then
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
     local tc=g:Select(tp,1,1,nil):GetFirst()
     if tc and Duel.SpecialSummon(tc,SUMMON_TYPE_RITUAL,tp,tp,false,true,POS_FACEUP)>0 then
       tc:CompleteProcedure()
