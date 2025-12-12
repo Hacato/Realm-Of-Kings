@@ -1,92 +1,75 @@
 --NGNL Game Start
---Scripted by Raivost
-function c99940070.initial_effect(c)
-  --(1) Shuffle
-  local e1=Effect.CreateEffect(c)
-  e1:SetDescription(aux.Stringid(99940070,0))
-  e1:SetCategory(CATEGORY_TODECK+CATEGORY_DRAW)
-  e1:SetType(EFFECT_TYPE_ACTIVATE)
-  e1:SetCode(EVENT_FREE_CHAIN)
-  e1:SetTarget(c99940070.tdtg)
-  e1:SetOperation(c99940070.tdop)
-  c:RegisterEffect(e1)
-  --(2) Return to hand
-  local e2=Effect.CreateEffect(c)
-  e2:SetDescription(aux.Stringid(99940070,2))
-  e2:SetCategory(CATEGORY_TOHAND)
-  e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-  e2:SetProperty(EFFECT_FLAG_DELAY)
-  e2:SetCode(EVENT_TO_GRAVE)
-  e2:SetCondition(c99940070.rthcon)
-  e2:SetTarget(c99940070.rthtg)
-  e2:SetOperation(c99940070.rthop)
-  c:RegisterEffect(e2)
+local s,id=GetID()
+function s.initial_effect(c)
+	--Activate
+	local e1=Effect.CreateEffect(c)
+	e1:SetCategory(CATEGORY_TODECK+CATEGORY_DRAW+CATEGORY_TOGRAVE)
+	e1:SetType(EFFECT_TYPE_ACTIVATE)
+	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetTarget(s.target)
+	e1:SetOperation(s.activate)
+	c:RegisterEffect(e1)
 end
---(1) Shuffle
-function c99940070.tdtg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.IsPlayerCanDraw(tp) and Duel.IsPlayerCanDraw(1-tp)
-  and Duel.IsExistingMatchingCard(Card.IsAbleToDeck,tp,LOCATION_HAND,0,1,nil) 
-  and Duel.IsExistingMatchingCard(Card.IsAbleToDeck,tp,0,LOCATION_HAND,1,nil) end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_TODECK,nil,1,tp,LOCATION_HAND)
-  Duel.SetOperationInfo(0,CATEGORY_TODECK,nil,1,1-tp,LOCATION_HAND)
-  Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,PLAYER_ALL,1)
+s.listed_series={0x994}
+
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then return Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)>0 
+		and Duel.GetFieldGroupCount(1-tp,LOCATION_HAND,0)>0 end
+	Duel.SetOperationInfo(0,CATEGORY_TODECK,nil,0,PLAYER_ALL,LOCATION_HAND)
+	Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,PLAYER_ALL,0)
+	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,nil,2,PLAYER_ALL,LOCATION_DECK)
 end
-function c99940070.tdop(e,tp,eg,ep,ev,re,r,rp)
-  local g1=Duel.GetFieldGroup(tp,LOCATION_HAND,0)
-  local g2=Duel.GetFieldGroup(tp,0,LOCATION_HAND)
-  local gc1=g1:GetCount()
-  local gc2=g2:GetCount()
-  if gc1==0 or gc2==0 then return end
-  g1:Merge(g2)
-  Duel.SendtoDeck(g1,nil,2,REASON_EFFECT)
-  Duel.ShuffleDeck(tp)
-  Duel.ShuffleDeck(1-tp)
-  Duel.BreakEffect()
-  Duel.Draw(tp,gc1,REASON_EFFECT)
-  Duel.Draw(1-tp,gc2,REASON_EFFECT)
-  --(1.1) Discard
-  local e1=Effect.CreateEffect(e:GetHandler())
-  e1:SetDescription(aux.Stringid(99940070,1))
-  e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O) 
-  e1:SetCategory(CATEGORY_HANDES+CATEGORY_DRAW)
-  e1:SetCode(EVENT_PHASE+PHASE_STANDBY)
-  e1:SetProperty(EFFECT_FLAG_BOTH_SIDE+EFFECT_FLAG_PLAYER_TARGET)
-  e1:SetCountLimit(1)
-  e1:SetCondition(c99940070.discon)
-  e1:SetTarget(c99940070.distg)
-  e1:SetOperation(c99940070.disop)
-  Duel.RegisterEffect(e1,tp)
+
+function s.pzonefilter(c)
+	return c:IsSetCard(0x994) and c:IsFaceup()
 end
---(1.1) Discard
-function c99940070.discon(e,tp,eg,ep,ev,re,r,rp)
-  return tp==Duel.GetTurnPlayer()
+
+function s.gamestart(tp)
+	--Count cards in hand for both players
+	local ct_p=Duel.GetFieldGroupCount(tp,LOCATION_HAND,0)
+	local ct_op=Duel.GetFieldGroupCount(1-tp,LOCATION_HAND,0)
+	
+	if ct_p==0 or ct_op==0 then return false end
+	
+	--Shuffle both players' hands into Deck
+	local g_p=Duel.GetFieldGroup(tp,LOCATION_HAND,0)
+	local g_op=Duel.GetFieldGroup(1-tp,LOCATION_HAND,0)
+	
+	Duel.SendtoDeck(g_p,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)
+	Duel.SendtoDeck(g_op,nil,SEQ_DECKSHUFFLE,REASON_EFFECT)
+	Duel.ShuffleDeck(tp)
+	Duel.ShuffleDeck(1-tp)
+	
+	--Determine the number of cards to draw (minimum of both players' hand counts)
+	local draw_count=math.min(ct_p,ct_op)
+	
+	--Both players draw
+	Duel.Draw(tp,draw_count,REASON_EFFECT)
+	Duel.Draw(1-tp,draw_count,REASON_EFFECT)
+	
+	--Send top card of each Deck to GY
+	local dg=Duel.GetDecktopGroup(tp,1)
+	dg:Merge(Duel.GetDecktopGroup(1-tp,1))
+	if #dg>0 then
+		Duel.SendtoGrave(dg,REASON_EFFECT)
+	end
+	
+	return true
 end
-function c99940070.distg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.IsExistingMatchingCard(Card.IsDiscardable,tp,LOCATION_HAND,0,1,nil) 
-  and Duel.IsPlayerCanDraw(tp,1) end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_HANDES,nil,0,tp,1)
-  Duel.SetOperationInfo(0,CATEGORY_DRAW,nil,0,tp,1)
-end
-function c99940070.disop(e,tp,eg,ep,ev,re,r,rp)
-  if Duel.DiscardHand(tp,aux.TRUE,1,1,REASON_EFFECT+REASON_DISCARD)~=0 then
-    Duel.Draw(tp,1,REASON_EFFECT)
-  end
-end
---(2) Return to hand
-function c99940070.rthcon(e,tp,eg,ep,ev,re,r,rp)
-  return e:GetHandler():IsReason(REASON_EFFECT) 
-  and (e:GetHandler():GetPreviousLocation()==LOCATION_DECK or e:GetHandler():GetPreviousLocation()==LOCATION_HAND)
-end
-function c99940070.rthtg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return e:GetHandler():IsAbleToHand() end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_TOHAND,e:GetHandler(),1,tp,LOCATION_GRAVE)
-end
-function c99940070.rthop(e,tp,eg,ep,ev,re,r,rp)
-  if e:GetHandler():IsRelateToEffect(e) and Duel.SendtoHand(e:GetHandler(),nil,REASON_EFFECT)~=0 
-  and Duel.ConfirmCards(1-tp,e:GetHandler())~=0 then
-    Duel.RaiseEvent(e:GetHandler(),EVENT_CUSTOM+99940060,e,0,tp,0,0)
-  end
+
+function s.activate(e,tp,eg,ep,ev,re,r,rp)
+	--First iteration
+	if not s.gamestart(tp) then return end
+	
+	--Check for NGNL cards in both Pendulum Zones
+	local pz1=Duel.GetFieldCard(tp,LOCATION_PZONE,0)
+	local pz2=Duel.GetFieldCard(tp,LOCATION_PZONE,1)
+	
+	if pz1 and pz2 and s.pzonefilter(pz1) and s.pzonefilter(pz2) then
+		--Can repeat the effect once more
+		if Duel.SelectYesNo(tp,aux.Stringid(id,0)) then
+			Duel.BreakEffect()
+			s.gamestart(tp)
+		end
+	end
 end
