@@ -20,7 +20,7 @@ function s.initial_effect(c)
     e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
     e2:SetProperty(EFFECT_FLAG_DELAY)
     e2:SetCode(EVENT_TO_GRAVE)
-    e2:SetCountLimit(1,id+1)
+    e2:SetCountLimit(1,{id,1})
     e2:SetCondition(s.rmcon)
     e2:SetTarget(s.rmtg)
     e2:SetOperation(s.rmop)
@@ -32,7 +32,7 @@ function s.initial_effect(c)
     e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
     e3:SetProperty(EFFECT_FLAG_DELAY)
     e3:SetCode(EVENT_REMOVE)
-    e3:SetCountLimit(1,id+2)
+    e3:SetCountLimit(1,{id,2})
     e3:SetTarget(s.sttg)
     e3:SetOperation(s.stop)
     c:RegisterEffect(e3)
@@ -85,27 +85,37 @@ function s.rmop(e,tp,eg,ep,ev,re,r,rp)
 end
 
 -- if banished: set or place "Shiranui" S/T
-function s.stfilter(c,tp)
-    return c:IsSetCard(0xd9) and c:IsType(TYPE_SPELL+TYPE_TRAP) 
-        and (c:IsSSetable() 
-        or (Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,40005099),tp,LOCATION_FZONE+LOCATION_SZONE,0,1,nil) 
-            and c:IsType(TYPE_CONTINUOUS) 
-            and Duel.GetLocationCount(tp,LOCATION_SZONE)>0))
+function s.stfilter(c)
+    return c:IsSetCard(0xd9) and c:IsType(TYPE_SPELL+TYPE_TRAP) and c:IsAbleToHand()
 end
 function s.sttg(e,tp,eg,ep,ev,re,r,rp,chk)
-    if chk==0 then return Duel.IsExistingMatchingCard(s.stfilter,tp,LOCATION_DECK,0,1,nil,tp) end
+    if chk==0 then return Duel.IsExistingMatchingCard(s.stfilter,tp,LOCATION_DECK,0,1,nil) end
 end
 function s.stop(e,tp,eg,ep,ev,re,r,rp)
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
-    local g=Duel.SelectMatchingCard(tp,s.stfilter,tp,LOCATION_DECK,0,1,1,nil,tp)
+    local g=Duel.SelectMatchingCard(tp,s.stfilter,tp,LOCATION_DECK,0,1,1,nil)
     local tc=g:GetFirst()
-    if tc then
-        if tc:IsType(TYPE_CONTINUOUS) 
-            and Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,40005099),tp,LOCATION_FZONE+LOCATION_SZONE,0,1,nil) 
-            and Duel.GetLocationCount(tp,LOCATION_SZONE)>0 then
+    if not tc then return end
+    
+    -- Check if can place face-up (if Continuous AND have Synthesis)
+    local has_synthesis=Duel.IsExistingMatchingCard(aux.FaceupFilter(Card.IsCode,40005099),tp,LOCATION_FZONE+LOCATION_SZONE,0,1,nil)
+    local can_place_faceup=tc:IsType(TYPE_CONTINUOUS) and has_synthesis and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
+    local can_set=tc:IsSSetable()
+    
+    -- If both options available, ask player
+    if can_place_faceup and can_set then
+        if Duel.SelectYesNo(tp,aux.Stringid(id,4)) then
+            -- Place face-up
             Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
         else
+            -- Set face-down
             Duel.SSet(tp,tc)
         end
+    elseif can_place_faceup then
+        -- Only face-up option
+        Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
+    elseif can_set then
+        -- Only set option
+        Duel.SSet(tp,tc)
     end
 end

@@ -8,7 +8,6 @@ function s.initial_effect(c)
     e1:SetType(EFFECT_TYPE_IGNITION)
     e1:SetRange(LOCATION_MZONE)
     e1:SetCountLimit(1,id)
-    e1:SetCondition(s.spcon)
     e1:SetTarget(s.sptg)
     e1:SetOperation(s.spop)
     c:RegisterEffect(e1)
@@ -16,17 +15,13 @@ function s.initial_effect(c)
     local e2=Effect.CreateEffect(c)
     e2:SetDescription(aux.Stringid(id,1))
     e2:SetCategory(CATEGORY_DAMAGE)
-    e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+    e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
     e2:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_PLAYER_TARGET)
     e2:SetCode(EVENT_REMOVE)
-    e2:SetCountLimit(1,id+1)
+    e2:SetCountLimit(1,{id,1})
     e2:SetTarget(s.damtg)
     e2:SetOperation(s.damop)
     c:RegisterEffect(e2)
-end
--- e1: condition - your Main Phase
-function s.spcon(e,tp,eg,ep,ev,re,r,rp)
-    return Duel.IsMainPhase() and Duel.GetTurnPlayer()==tp
 end
 -- e1: send self + 1 Zombie Tuner from Deck, summon Zombie Synchro
 function s.tgfilter(c)
@@ -34,8 +29,7 @@ function s.tgfilter(c)
 end
 function s.synfilter(c,e,tp,lv)
     return c:IsRace(RACE_ZOMBIE) and c:IsType(TYPE_SYNCHRO) 
-        and c:IsLevel(lv) and Duel.GetLocationCountFromEx(tp,tp,nil,c)>0 
-        and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_SYNCHRO,tp,false,false)
+        and c:IsLevel(lv) and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_SYNCHRO,tp,false,false)
 end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
     local c=e:GetHandler()
@@ -56,11 +50,15 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
     local lv=c:GetLevel()+tc:GetLevel()
     g:AddCard(c)
     if Duel.SendtoGrave(g,REASON_EFFECT)==2 and g:FilterCount(Card.IsLocation,nil,LOCATION_GRAVE)==2 then
+        -- Check if there's space in Extra Monster Zone
+        if Duel.GetLocationCountFromEx(tp,tp,nil)<=0 then return end
         Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
         local sg=Duel.SelectMatchingCard(tp,s.synfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp,lv)
         local sc=sg:GetFirst()
-        if sc and Duel.SpecialSummon(sc,SUMMON_TYPE_SYNCHRO,tp,tp,false,false,POS_FACEUP)>0 then
-            sc:CompleteProcedure()
+        if sc then
+            if Duel.SpecialSummon(sc,SUMMON_TYPE_SYNCHRO,tp,tp,false,false,POS_FACEUP)>0 then
+                sc:CompleteProcedure()
+            end
         end
     end
 end
