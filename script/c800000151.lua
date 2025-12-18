@@ -31,23 +31,25 @@ function s.initial_effect(c)
 	e2:SetOperation(s.thop)
 	c:RegisterEffect(e2)
 end
+s.listed_series={0x816}
 --Special Summon restriction
 function s.splimit(e,c)
 	return not c:IsSetCard(0x816)
-end
---GY banish filter
-function s.rmfilter(c)
-	return c:IsSetCard(0x816) and c:IsMonster() and c:IsAbleToRemove()
 end
 --Deck summon filter (MATCHES PRINTED NAME)
 function s.spfilter(c,code,e,tp)
 	return c:IsCode(code)
 		and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
 end
+--GY banish filter - ONLY monsters that have a copy in Deck
+function s.rmspfilter(c,e,tp)
+	return c:IsSetCard(0x816) and c:IsMonster() and c:IsAbleToRemove()
+		and Duel.IsExistingMatchingCard(s.spfilter,tp,LOCATION_DECK,0,1,nil,c:GetOriginalCode(),e,tp)
+end
 function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
 		return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-			and Duel.IsExistingMatchingCard(s.rmfilter,tp,LOCATION_GRAVE,0,1,nil)
+			and Duel.IsExistingMatchingCard(s.rmspfilter,tp,LOCATION_GRAVE,0,1,nil,e,tp)
 	end
 	Duel.SetOperationInfo(0,CATEGORY_REMOVE,nil,1,tp,LOCATION_GRAVE)
 	Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_DECK)
@@ -55,7 +57,7 @@ end
 function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then return end
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
-	local g=Duel.SelectMatchingCard(tp,s.rmfilter,tp,LOCATION_GRAVE,0,1,1,nil)
+	local g=Duel.SelectMatchingCard(tp,s.rmspfilter,tp,LOCATION_GRAVE,0,1,1,nil,e,tp)
 	local rc=g:GetFirst()
 	if not rc then return end
 	local code=rc:GetOriginalCode()

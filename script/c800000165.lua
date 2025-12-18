@@ -35,13 +35,22 @@ function s.initial_effect(c)
 	e4:SetTarget(s.thtg)
 	e4:SetOperation(s.thop)
 	c:RegisterEffect(e4)
-	--Link Summon limit
+	--Can only Link Summon 1 copy per turn
 	local e5=Effect.CreateEffect(c)
-	e5:SetType(EFFECT_TYPE_SINGLE)
-	e5:SetCode(EFFECT_LIMIT_SUMMON_PROC)
-	e5:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
-	e5:SetCondition(s.lsumcon)
+	e5:SetType(EFFECT_TYPE_FIELD)
+	e5:SetCode(EFFECT_CANNOT_SPECIAL_SUMMON)
+	e5:SetProperty(EFFECT_FLAG_PLAYER_TARGET)
+	e5:SetRange(LOCATION_EXTRA)
+	e5:SetTargetRange(1,0)
+	e5:SetTarget(s.sumlimit)
 	c:RegisterEffect(e5)
+	--Register that this card was Link Summoned
+	local e6=Effect.CreateEffect(c)
+	e6:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e6:SetCode(EVENT_SPSUMMON_SUCCESS)
+	e6:SetCondition(s.regcon)
+	e6:SetOperation(s.regop)
+	c:RegisterEffect(e6)
 end
 s.listed_names={800000166}
 s.listed_series={0x816,0x5510}
@@ -74,6 +83,13 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 		Duel.ConfirmCards(1-tp,g)
 	end
 end
-function s.lsumcon(e)
-	return Duel.GetFlagEffect(e:GetHandlerPlayer(),id)>0
+function s.sumlimit(e,c,sump,sumtype,sumpos,targetp)
+	return c:IsCode(id) and sumtype&SUMMON_TYPE_LINK==SUMMON_TYPE_LINK 
+		and Duel.GetFlagEffect(sump,id)>0
+end
+function s.regcon(e,tp,eg,ep,ev,re,r,rp)
+	return e:GetHandler():IsSummonType(SUMMON_TYPE_LINK)
+end
+function s.regop(e,tp,eg,ep,ev,re,r,rp)
+	Duel.RegisterFlagEffect(tp,id,RESET_PHASE+PHASE_END,0,1)
 end
