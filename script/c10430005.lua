@@ -25,13 +25,12 @@ function s.initial_effect(c)
 	e3:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e3)
 end
-
+s.listed_names={CARD_UMI}
 function s.atktg(e,c)
 	return c:IsAttribute(ATTRIBUTE_WATER) and c:IsLevelBelow(5)
 end
-
 function s.econ(e)
-	return Duel.IsEnvironment(22702055)
+	return Duel.IsEnvironment(CARD_UMI)
 end
 function s.sptg1(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chkc then return chkc:IsControler(1-tp) and chkc:IsLocation(LOCATION_MZONE) and chkc:IsFaceup() end

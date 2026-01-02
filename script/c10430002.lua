@@ -26,12 +26,12 @@ function s.initial_effect(c)
 	e3:SetOperation(s.repop)
 	c:RegisterEffect(e3)
 end
-
+s.listed_names={CARD_UMI}
 function s.econ(e)
-	return Duel.IsEnvironment(22702055)
+	return Duel.IsEnvironment(CARD_UMI)
 end
 function s.repfilter(c,tp)
-	return c:IsFaceup() and (c:IsLevelBelow(5) or c:IsCode(22702055)) and c:IsControler(tp) and c:IsLocation(LOCATION_ONFIELD) 
+	return c:IsFaceup() and (c:IsLevelBelow(5) or c:IsCode(CARD_UMI)) and c:IsControler(tp) and c:IsLocation(LOCATION_ONFIELD) 
 		and not c:IsReason(REASON_REPLACE) and c:GetReasonPlayer()==1-tp
 end
 function s.reptg(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -44,7 +44,6 @@ end
 function s.repop(e,tp,eg,ep,ev,re,r,rp)
 	Duel.Remove(e:GetHandler(),POS_FACEUP,REASON_EFFECT)
 end
-
 function s.thfilter(c)
 	return c:IsLevel(5) and c:IsAttribute(ATTRIBUTE_WATER) and c:IsAbleToHand()
 end

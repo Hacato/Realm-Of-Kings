@@ -51,7 +51,7 @@ function s.cfilter(c)
 	return c:IsFaceup() and c:IsType(TYPE_FUSION) and c:IsRace(RACE_WINGEDBEAST)
 end
 function s.negcon(e,tp,eg,ep,ev,re,r,rp)
-	return re:IsActiveType(TYPE_MONSTER) and Duel.IsChainNegatable(ev)
+	return ep~=tp and re:IsActiveType(TYPE_MONSTER) and Duel.IsChainNegatable(ev)
 		and Duel.IsExistingMatchingCard(s.cfilter,tp,LOCATION_MZONE,0,1,nil)
 end
 function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)

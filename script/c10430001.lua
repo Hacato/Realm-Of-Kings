@@ -28,13 +28,13 @@ function s.initial_effect(c)
 	e3:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e3)
 end
-
+s.listed_names={CARD_UMI}
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return e:GetHandler():IsDiscardable() end
 	Duel.SendtoGrave(e:GetHandler(),REASON_COST+REASON_DISCARD)
 end
 function s.filter(c)
-	return (c:IsCode(22702055) or (c:IsType(TYPE_MONSTER) and c:IsLevelBelow(5) and c:IsAttribute(ATTRIBUTE_WATER))) 
+	return (c:IsCode(CARD_UMI) or (c:IsType(TYPE_MONSTER) and c:IsLevelBelow(5) and c:IsAttribute(ATTRIBUTE_WATER))) 
 		and c:IsFaceup()
 end
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
@@ -57,9 +57,8 @@ end
 function s.efilter(e,re)
 	return e:GetOwnerPlayer()~=re:GetOwnerPlayer()
 end
-
 function s.econ(e)
-	return Duel.IsEnvironment(22702055)
+	return Duel.IsEnvironment(CARD_UMI)
 end
 function s.spfilter(c,e,tp)
 	return c:IsAttribute(ATTRIBUTE_WATER) and c:IsLevelBelow(5) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)

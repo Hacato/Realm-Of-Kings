@@ -26,9 +26,9 @@ function s.initial_effect(c)
 	e3:SetCondition(s.actcon)
 	c:RegisterEffect(e3)
 end
-
+s.listed_names={CARD_UMI}
 function s.econ(e)
-	return Duel.IsEnvironment(22702055)
+	return Duel.IsEnvironment(CARD_UMI)
 end
 function s.spfilter1(c,e,tp)
 	return c:IsAttribute(ATTRIBUTE_WATER) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
