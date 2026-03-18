@@ -9,7 +9,7 @@ function s.initial_effect(c)
 	e1:SetCode(EVENT_FREE_CHAIN)
 	e1:SetRange(LOCATION_HAND)
 	e1:SetProperty(EFFECT_FLAG_CARD_TARGET)
-	e1:SetCountLimit(1,{id,1})
+	e1:SetCondition(s.eqcon)
 	e1:SetTarget(s.eqtg)
 	e1:SetOperation(s.eqop)
 	c:RegisterEffect(e1)
@@ -31,7 +31,7 @@ function s.initial_effect(c)
 	e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e3:SetCode(EVENT_TO_GRAVE)
 	e3:SetProperty(EFFECT_FLAG_DELAY)
-	e3:SetCountLimit(1,{id,2})
+	e3:SetCountLimit(1,{id,4})
 	e3:SetTarget(s.drtg)
 	e3:SetOperation(s.drop)
 	c:RegisterEffect(e3)
@@ -40,8 +40,11 @@ end
 -- ────────────────────────────────────────────────────────────────
 -- Effect (1): Quick Effect equip from hand
 -- ────────────────────────────────────────────────────────────────
+function s.eqcon(e,tp,eg,ep,ev,re,r,rp)
+	return e:GetHandler():IsLocation(LOCATION_HAND) and e:GetHandler():IsControler(tp)
+end
+
 function s.eqfilter(c)
-	-- Target must be a face-up Level 8+ "Tatsugiri" you control
 	return c:IsFaceup()
 		and c:IsSetCard(0x24A2)
 		and c:IsLevelAbove(7)
@@ -68,9 +71,7 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 	if not c:IsRelateToEffect(e) then return end
 	if not tc or not tc:IsFaceup() then return end
 	if Duel.GetLocationCount(tp,LOCATION_SZONE)<=0 then return end
-	-- Equip face-up
 	if Duel.Equip(tp,c,tc,true) then
-		-- Equip limit: stays on this target only
 		local elim=Effect.CreateEffect(c)
 		elim:SetType(EFFECT_TYPE_SINGLE)
 		elim:SetCode(EFFECT_EQUIP_LIMIT)
@@ -78,11 +79,9 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 		elim:SetReset(RESET_EVENT+RESETS_STANDARD)
 		elim:SetValue(function(ef,cc) return cc==tc end)
 		c:RegisterEffect(elim)
-		-- Count Tatsugiri equip cards on the target
 		local g=tc:GetEquipGroup():Filter(Card.IsSetCard,nil,0x24A2)
 		local ct=#g
 		if ct==0 then return end
-		-- Negate opponent's face-up monsters (up to ct)
 		local og=Duel.GetMatchingGroup(Card.IsFaceup,tp,0,LOCATION_MZONE,nil)
 		if #og==0 then return end
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_NEGATE)

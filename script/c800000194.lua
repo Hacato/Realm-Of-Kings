@@ -39,7 +39,7 @@ end
 -- (1) Search
 --────────────────────────────
 function s.tatfilter(c)
-	return c:IsSetCard(0x24A2) and c:IsAbleToHand()
+	return c:IsSetCard(0x24A2) and c:IsMonster() and c:IsAbleToHand()
 end
 
 function s.actg(e,tp,eg,ep,ev,re,r,rp,chk)
