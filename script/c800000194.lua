@@ -9,6 +9,7 @@ function s.initial_effect(c)
 	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
 	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	e1:SetTarget(s.actg)
 	e1:SetOperation(s.actop)
 	c:RegisterEffect(e1)
@@ -29,7 +30,7 @@ function s.initial_effect(c)
 	e3:SetCategory(CATEGORY_EQUIP)
 	e3:SetType(EFFECT_TYPE_IGNITION)
 	e3:SetRange(LOCATION_FZONE)
-	e3:SetCountLimit(1,id)
+	e3:SetCountLimit(1,{id,1})
 	e3:SetTarget(s.eqtg)
 	e3:SetOperation(s.eqop)
 	c:RegisterEffect(e3)
@@ -60,12 +61,14 @@ end
 
 --────────────────────────────
 -- (2) All WATER condition
+-- Face-down monsters disable this effect
 --────────────────────────────
-function s.watercond(e,tp,eg,ep,ev,re,r,rp)
-	local p=e:GetHandlerPlayer()
-	local mg=Duel.GetMatchingGroup(Card.IsFaceup,p,LOCATION_MZONE,0,nil)
-	if #mg==0 then return false end
-	return mg:FilterCount(Card.IsAttribute,nil,ATTRIBUTE_WATER)==#mg
+function s.watercond(e)
+	local tp=e:GetHandlerPlayer()
+	local g=Duel.GetFieldGroup(tp,LOCATION_MZONE,0)
+	if #g==0 then return false end
+	return g:FilterCount(Card.IsFaceup,nil)==#g
+		and g:FilterCount(Card.IsAttribute,nil,ATTRIBUTE_WATER)==#g
 end
 
 --────────────────────────────
@@ -76,12 +79,15 @@ function s.tatmzfilter(c)
 end
 
 function s.uniongyfilter(c)
-	return c:IsAttribute(ATTRIBUTE_WATER) and c:IsType(TYPE_UNION)
+	return c:IsAttribute(ATTRIBUTE_WATER)
+		and c:IsType(TYPE_UNION)
+		and c:IsType(TYPE_MONSTER)
 end
 
 function s.eqtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	if chkc then
-		return chkc:IsControler(tp) and chkc:IsLocation(LOCATION_MZONE) and s.tatmzfilter(chkc)
+		return chkc:IsControler(tp) and chkc:IsLocation(LOCATION_MZONE)
+			and s.tatmzfilter(chkc)
 	end
 	if chk==0 then
 		return Duel.IsExistingTarget(s.tatmzfilter,tp,LOCATION_MZONE,0,1,nil)
@@ -89,9 +95,8 @@ function s.eqtg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 			and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 	end
 
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_EQUIP)
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
 	Duel.SelectTarget(tp,s.tatmzfilter,tp,LOCATION_MZONE,0,1,1,nil)
-
 	Duel.SetOperationInfo(0,CATEGORY_EQUIP,nil,1,tp,LOCATION_GRAVE+LOCATION_REMOVED)
 end
 
@@ -105,18 +110,14 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 	local uc=g:GetFirst()
 	if not uc then return end
 
-	if Duel.MoveToField(uc,tp,tp,LOCATION_SZONE,POS_FACEUP,true) then
-		if Duel.Equip(tp,uc,tc,true) then
-
-			--Equip limit (prevents destruction)
-			local e1=Effect.CreateEffect(e:GetHandler())
-			e1:SetType(EFFECT_TYPE_SINGLE)
-			e1:SetCode(EFFECT_EQUIP_LIMIT)
-			e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
-			e1:SetValue(function(e,c) return c==tc end)
-			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
-			uc:RegisterEffect(e1)
-
-		end
+	if Duel.Equip(tp,uc,tc,true) then
+		--Equip Limit
+		local e1=Effect.CreateEffect(e:GetHandler())
+		e1:SetType(EFFECT_TYPE_SINGLE)
+		e1:SetCode(EFFECT_EQUIP_LIMIT)
+		e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
+		e1:SetValue(function(e,c) return c==tc end)
+		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+		uc:RegisterEffect(e1)
 	end
 end
