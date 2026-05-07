@@ -12,7 +12,6 @@ function s.initial_effect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e1:SetProperty(EFFECT_FLAG_DELAY)
 	e1:SetCode(EVENT_SPSUMMON_SUCCESS)
-	e1:SetCountLimit(1,{id,1})
 	e1:SetTarget(s.eqtg)
 	e1:SetOperation(s.eqop)
 	c:RegisterEffect(e1)
@@ -25,13 +24,13 @@ function s.initial_effect(c)
 	e2:SetValue(s.immval)
 	c:RegisterEffect(e2)
 
-	--Banish 1 Spell Card from your field; add 1 Ritual Spell from Deck
+	--Once per turn: banish 1 Spell Card from your field; add 1 Ritual Spell from Deck
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_REMOVE+CATEGORY_TOHAND+CATEGORY_SEARCH)
 	e3:SetType(EFFECT_TYPE_IGNITION)
 	e3:SetRange(LOCATION_MZONE)
-	e3:SetCountLimit(1,{id,2})
+	e3:SetCountLimit(1)
 	e3:SetCost(s.thcost)
 	e3:SetTarget(s.thtg)
 	e3:SetOperation(s.thop)
@@ -69,11 +68,11 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 		tc:RegisterEffect(e1)
 
-		--Mark relation between this card and the equipped card
+		--Mark relation
 		c:CreateRelation(tc,RESET_EVENT+RESETS_STANDARD)
 		tc:CreateRelation(c,RESET_EVENT+RESETS_STANDARD)
 
-		--Send equipped card to GY if relation breaks
+		--Keep relation check
 		local e2=Effect.CreateEffect(c)
 		e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
 		e2:SetCode(EVENT_ADJUST)
@@ -88,9 +87,10 @@ end
 function s.eqcheck(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local tc=e:GetLabelObject()
-	if not tc or not tc:IsLocation(LOCATION_SZONE) or not tc:IsRelateToCard(c) or not c:IsRelateToCard(tc) then
+	if not tc or not tc:IsLocation(LOCATION_SZONE)
+		or not tc:IsRelateToCard(c)
+		or not c:IsRelateToCard(tc) then
 		e:Reset()
-		return
 	end
 end
 
@@ -122,7 +122,9 @@ function s.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
 end
 
 function s.thfilter(c)
-	return c:IsSpell() and c:IsType(TYPE_RITUAL) and c:IsAbleToHand()
+	return c:IsSpell()
+		and c:IsType(TYPE_RITUAL)
+		and c:IsAbleToHand()
 end
 
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)

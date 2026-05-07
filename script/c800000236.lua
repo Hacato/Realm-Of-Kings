@@ -2,10 +2,9 @@
 local s,id=GetID()
 local SET_HUNGRY=0x2816
 local CARD_HUNGRY_BURGER=30243636
-local CARD_HUNGREED_BURGER=800000235
 
 function s.initial_effect(c)
-	--Ritual Summon "Hungry Burger" or "Hungreed Burger"
+	--Ritual Summon "Hungry Burger" or a "Hungry" Ritual Monster
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_RELEASE+CATEGORY_REMOVE)
@@ -29,11 +28,12 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 
-s.listed_names={CARD_HUNGRY_BURGER,CARD_HUNGREED_BURGER}
+s.listed_names={CARD_HUNGRY_BURGER}
 s.listed_series={SET_HUNGRY}
 
 function s.ritfilter(c,e,tp)
-	return c:IsCode(CARD_HUNGRY_BURGER,CARD_HUNGREED_BURGER)
+	return (c:IsCode(CARD_HUNGRY_BURGER)
+		or (c:IsSetCard(SET_HUNGRY) and c:IsType(TYPE_RITUAL)))
 		and c:IsCanBeSpecialSummoned(e,SUMMON_TYPE_RITUAL,tp,false,true)
 end
 
@@ -42,7 +42,8 @@ function s.matfilter(c,tc)
 end
 
 function s.gyfilter(c)
-	return c:IsSetCard(SET_HUNGRY) and c:IsMonster()
+	return c:IsSetCard(SET_HUNGRY)
+		and c:IsMonster()
 		and c:IsAbleToRemove()
 		and c:HasLevel()
 end
@@ -116,7 +117,9 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.thfilter(c)
-	return c:IsSetCard(SET_HUNGRY) and c:IsMonster() and c:IsAbleToHand()
+	return c:IsSetCard(SET_HUNGRY)
+		and c:IsMonster()
+		and c:IsAbleToHand()
 end
 
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
