@@ -10,7 +10,6 @@ function s.initial_effect(c)
 	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_RELEASE+CATEGORY_REMOVE)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
 	e1:SetCode(EVENT_FREE_CHAIN)
-	e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
 	e1:SetTarget(s.target)
 	e1:SetOperation(s.activate)
 	c:RegisterEffect(e1)
@@ -49,10 +48,9 @@ function s.gyfilter(c)
 end
 
 function s.checkmat(tp,tc)
-	local lv=tc:GetLevel()
 	local mg=Duel.GetMatchingGroup(s.matfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,nil,tc)
 	mg:Merge(Duel.GetMatchingGroup(s.gyfilter,tp,LOCATION_GRAVE,0,nil))
-	return lv>0 and s.canreach(mg,lv,0)
+	return s.canreach(mg,6,0)
 end
 
 function s.canreach(g,lv,sum)
@@ -82,17 +80,15 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	local rg=Duel.SelectMatchingCard(tp,function(c,e,tp)
 		return s.ritfilter(c,e,tp) and s.checkmat(tp,c)
 	end,tp,LOCATION_HAND,0,1,1,nil,e,tp)
-
 	local tc=rg:GetFirst()
 	if not tc then return end
 
-	local lv=tc:GetLevel()
 	local mg=Duel.GetMatchingGroup(s.matfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,nil,tc)
 	mg:Merge(Duel.GetMatchingGroup(s.gyfilter,tp,LOCATION_GRAVE,0,nil))
 
 	local mat=Group.CreateGroup()
 	local sum=0
-	while sum<lv do
+	while sum<6 do
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_RELEASE)
 		local sg=mg:Select(tp,1,1,nil)
 		local sc=sg:GetFirst()
@@ -112,8 +108,9 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 		Duel.Remove(rem,POS_FACEUP,REASON_EFFECT+REASON_MATERIAL+REASON_RITUAL)
 	end
 
-	Duel.SpecialSummon(tc,SUMMON_TYPE_RITUAL,tp,tp,false,true,POS_FACEUP)
-	tc:CompleteProcedure()
+	if Duel.SpecialSummon(tc,SUMMON_TYPE_RITUAL,tp,tp,false,true,POS_FACEUP)>0 then
+		tc:CompleteProcedure()
+	end
 end
 
 function s.thfilter(c)
