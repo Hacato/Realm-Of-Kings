@@ -5,7 +5,7 @@ local CARD_VENDING_MACHINE=800000247
 function s.initial_effect(c)
 	c:EnableReviveLimit()
 
-	--When Special Summoned: place 1 random card from opponent's hand in your S/T Zone as an Equip Spell
+	--Special Summoned: Equip 1 random card from opponent's hand to this card
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_EQUIP)
@@ -24,7 +24,7 @@ function s.initial_effect(c)
 	e2:SetValue(s.immval)
 	c:RegisterEffect(e2)
 
-	--Once per turn: banish 1 Spell Card from your field; add 1 Ritual Spell from Deck
+	--Banish 1 Spell Card from your field; add 1 Ritual Spell from Deck
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,1))
 	e3:SetCategory(CATEGORY_REMOVE+CATEGORY_TOHAND+CATEGORY_SEARCH)
@@ -59,48 +59,27 @@ function s.eqop(e,tp,eg,ep,ev,re,r,rp)
 	local tc=g:GetFirst()
 	if not tc then return end
 
-	if Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true) then
-		--Treat as Equip Spell
+	if Duel.Equip(tp,tc,c,true) then
+		--Equip limit: it can only stay equipped to this Hungry Cola
 		local e1=Effect.CreateEffect(c)
 		e1:SetType(EFFECT_TYPE_SINGLE)
-		e1:SetCode(EFFECT_CHANGE_TYPE)
-		e1:SetValue(TYPE_SPELL+TYPE_EQUIP)
+		e1:SetCode(EFFECT_EQUIP_LIMIT)
+		e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE)
 		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+		e1:SetValue(function(e,mc)
+			return mc==c
+		end)
 		tc:RegisterEffect(e1)
-
-		--Mark relation
-		c:CreateRelation(tc,RESET_EVENT+RESETS_STANDARD)
-		tc:CreateRelation(c,RESET_EVENT+RESETS_STANDARD)
-
-		--Keep relation check
-		local e2=Effect.CreateEffect(c)
-		e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-		e2:SetCode(EVENT_ADJUST)
-		e2:SetRange(LOCATION_MZONE)
-		e2:SetLabelObject(tc)
-		e2:SetOperation(s.eqcheck)
-		e2:SetReset(RESET_EVENT+RESETS_STANDARD)
-		c:RegisterEffect(e2)
 	end
 end
 
-function s.eqcheck(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	local tc=e:GetLabelObject()
-	if not tc or not tc:IsLocation(LOCATION_SZONE)
-		or not tc:IsRelateToCard(c)
-		or not c:IsRelateToCard(tc) then
-		e:Reset()
-	end
-end
-
-function s.eqfilter(c,mc)
-	return c:IsFaceup() and c:IsType(TYPE_EQUIP) and c:IsRelateToCard(mc)
+function s.eqfilter(c)
+	return c:IsFaceup() and c:IsType(TYPE_EQUIP)
 end
 
 function s.immcon(e)
 	local c=e:GetHandler()
-	return Duel.IsExistingMatchingCard(s.eqfilter,c:GetControler(),LOCATION_SZONE,0,1,nil,c)
+	return Duel.IsExistingMatchingCard(s.eqfilter,c:GetControler(),LOCATION_SZONE,0,1,nil)
 end
 
 function s.immval(e,te)

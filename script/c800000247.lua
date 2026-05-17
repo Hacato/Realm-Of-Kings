@@ -46,11 +46,17 @@ function s.ritfilter(c,e,tp)
 end
 
 function s.fieldmatfilter(c)
-	return c:HasLevel() and c:IsReleasable()
+	return c:IsMonster()
+		and c:HasLevel()
+		and c:GetLevel()>0
+		and c:IsReleasable()
 end
 
 function s.deckmatfilter(c)
-	return c:HasLevel() and c:IsMonster() and c:IsAbleToGrave()
+	return c:IsMonster()
+		and c:HasLevel()
+		and c:GetLevel()>0
+		and c:IsAbleToGrave()
 end
 
 function s.getmatgroup(tp)
@@ -65,9 +71,12 @@ function s.exactcheck(g,lv,sum)
 	if sum>lv or #g==0 then return false end
 	local tc=g:GetFirst()
 	while tc do
-		local sg=g:Clone()
-		sg:RemoveCard(tc)
-		if s.exactcheck(sg,lv,sum+tc:GetLevel()) then return true end
+		local tclv=tc:GetLevel()
+		if tclv>0 and sum+tclv<=lv then
+			local sg=g:Clone()
+			sg:RemoveCard(tc)
+			if s.exactcheck(sg,lv,sum+tclv) then return true end
+		end
 		tc=g:GetNext()
 	end
 	return false
@@ -103,19 +112,24 @@ function s.ritop(e,tp,eg,ep,ev,re,r,rp)
 	local sum=0
 	while sum<6 do
 		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_RELEASE)
-		local sg=mg:FilterSelect(tp,function(c,mat,sum)
+		local sg=mg:FilterSelect(tp,function(c)
 			local lv=c:GetLevel()
-			if sum+lv>6 then return false end
+			if lv<=0 or sum+lv>6 then return false end
 			local cg=mg:Clone()
 			cg:RemoveCard(c)
 			return s.exactcheck(cg,6,sum+lv)
-		end,1,1,nil,mat,sum)
+		end,1,1,nil)
+
 		local sc=sg:GetFirst()
 		if not sc then return end
 		mat:AddCard(sc)
 		mg:RemoveCard(sc)
 		sum=sum+sc:GetLevel()
 	end
+
+	if sum~=6 then return end
+
+	rc:SetMaterial(mat)
 
 	local rel=mat:Filter(Card.IsLocation,nil,LOCATION_MZONE)
 	local send=mat:Filter(Card.IsLocation,nil,LOCATION_DECK)
@@ -153,6 +167,12 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 
+function s.gyfilter(c)
+	return c:IsAbleToHand()
+		and ((c:IsMonster() and c:IsType(TYPE_RITUAL))
+		or (c:IsSpell() and c:IsType(TYPE_RITUAL)))
+end
+
 function s.gycost(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()
 	if chk==0 then
@@ -160,12 +180,6 @@ function s.gycost(e,tp,eg,ep,ev,re,r,rp,chk)
 			and Duel.IsExistingMatchingCard(s.gyfilter,tp,LOCATION_GRAVE,0,1,c)
 	end
 	Duel.SendtoDeck(c,nil,SEQ_DECKSHUFFLE,REASON_COST)
-end
-
-function s.gyfilter(c)
-	return c:IsAbleToHand()
-		and ((c:IsMonster() and c:IsType(TYPE_RITUAL))
-		or (c:IsSpell() and c:IsType(TYPE_RITUAL)))
 end
 
 function s.gytg(e,tp,eg,ep,ev,re,r,rp,chk)
