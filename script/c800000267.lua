@@ -3,12 +3,12 @@ local s,id=GetID()
 
 function s.initial_effect(c)
 	--If discarded by card effect: Fusion Summon
-	--If discarded by opponent: also Set 1 Spell/Trap from their GY
+	--If discarded by opponent's card effect: also optionally Set 1 Spell/Trap from their GY
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
 	e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-	e1:SetProperty(EFFECT_FLAG_DELAY)
+	e1:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_CARD_TARGET)
 	e1:SetCode(EVENT_TO_GRAVE)
 	e1:SetCondition(s.condition)
 	e1:SetTarget(s.target)
@@ -23,12 +23,9 @@ end
 function s.condition(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 
-	--Remember previous controller for opponent-discard check
-	e:SetLabel(c:GetPreviousControler())
-
 	return c:IsPreviousLocation(LOCATION_HAND)
-		and r&(REASON_DISCARD|REASON_EFFECT)
-			==REASON_DISCARD|REASON_EFFECT
+		and c:IsReason(REASON_DISCARD)
+		and c:IsReason(REASON_EFFECT)
 end
 
 --==================================================
@@ -72,12 +69,15 @@ end
 
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 
+	--If this effect has already targeted a card,
+	--allow normal target checking
 	if chkc then
 		return chkc:IsControler(1-tp)
 			and chkc:IsLocation(LOCATION_GRAVE)
 			and s.setfilter(chkc)
 	end
 
+	--Build possible Fusion Material pool
 	local mg=Duel.GetMatchingGroup(
 		s.matfilter,
 		tp,
@@ -90,23 +90,17 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	)
 
 	if chk==0 then
-		return Duel.GetLocationCountFromEx(
+		return Duel.IsExistingMatchingCard(
+			s.fusfilter,
 			tp,
-			tp,
+			LOCATION_EXTRA,
+			0,
+			1,
 			nil,
-			nil
-		)>0
-			and Duel.IsExistingMatchingCard(
-				s.fusfilter,
-				tp,
-				LOCATION_EXTRA,
-				0,
-				1,
-				nil,
-				e,
-				tp,
-				mg
-			)
+			e,
+			tp,
+			mg
+		)
 	end
 
 	Duel.SetOperationInfo(
@@ -122,9 +116,12 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 	-- Opponent-discard bonus
 	--==================================================
 
-	local oppdiscard=
-		tp~=rp
-		and tp==e:GetLabel()
+	--rp is the player responsible for the effect
+	--that discarded Laxen
+	local oppdiscard=(rp==1-tp)
+
+	--Store whether opponent caused the discard
+	e:SetLabel(oppdiscard and 1 or 0)
 
 	if oppdiscard
 		and Duel.IsExistingTarget(
@@ -135,16 +132,12 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
 			1,
 			nil
 		)
+		and Duel.GetLocationCount(tp,LOCATION_SZONE)>0
 		and Duel.SelectYesNo(
 			tp,
 			aux.Stringid(id,1)
 		)
 	then
-		e:SetProperty(
-			EFFECT_FLAG_DELAY
-			|EFFECT_FLAG_CARD_TARGET
-		)
-
 		Duel.Hint(
 			HINT_SELECTMSG,
 			tp,
@@ -170,7 +163,10 @@ end
 
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
 
-	--Build the complete Fusion Material pool
+	--==================================================
+	-- Build complete Fusion Material pool
+	--==================================================
+
 	local mg=Duel.GetMatchingGroup(
 		s.matfilter,
 		tp,
@@ -182,16 +178,8 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 		nil
 	)
 
-	if Duel.GetLocationCountFromEx(
-		tp,
-		tp,
-		nil,
-		nil
-	)<=0 then
-		return
-	end
-
-	--Find currently summonable Fiend Fusion Monsters
+	--Find Fiend Fusion Monsters whose material
+	--requirements can currently be fulfilled
 	local fg=Duel.GetMatchingGroup(
 		s.fusfilter,
 		tp,
@@ -221,16 +209,8 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 
 		if fc then
 
-			--==================================================
-			-- Let the Fusion procedure itself determine
-			-- the proper materials and material count.
-			--
-			-- Example:
-			-- Grapha + 1 DARK = 2 materials
-			-- Colorless + named monster + 2+ Fiends =
-			-- proper number according to its own procedure
-			--==================================================
-
+			--Let the selected Fusion Monster's
+			--own Fusion procedure determine its materials
 			local mat=Duel.SelectFusionMaterial(
 				tp,
 				fc,
@@ -248,29 +228,44 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 				)
 			then
 
-				fc:SetMaterial(mat)
+				--==================================================
+				-- IMPORTANT:
+				-- Check the Extra Deck summon zone while treating
+				-- selected field materials as leaving the field.
+				--==================================================
 
-				--Banish only the materials actually selected
-				if Duel.Remove(
+				if Duel.GetLocationCountFromEx(
+					tp,
+					tp,
 					mat,
-					POS_FACEUP,
-					REASON_EFFECT
-						|REASON_MATERIAL
-						|REASON_FUSION
-				)==#mat
+					fc
+				)>0
 				then
 
-					if Duel.SpecialSummon(
-						fc,
-						SUMMON_TYPE_FUSION,
-						tp,
-						tp,
-						false,
-						false,
-						POS_FACEUP
-					)>0
+					fc:SetMaterial(mat)
+
+					--Banish only the selected Fusion Materials
+					if Duel.Remove(
+						mat,
+						POS_FACEUP,
+						REASON_EFFECT
+							|REASON_MATERIAL
+							|REASON_FUSION
+					)==#mat
 					then
-						fc:CompleteProcedure()
+
+						if Duel.SpecialSummon(
+							fc,
+							SUMMON_TYPE_FUSION,
+							tp,
+							tp,
+							false,
+							false,
+							POS_FACEUP
+						)>0
+						then
+							fc:CompleteProcedure()
+						end
 					end
 				end
 			end
@@ -282,10 +277,15 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 	-- Set targeted Spell/Trap from opponent's GY
 	--==================================================
 
+	if e:GetLabel()~=1 then
+		return
+	end
+
 	local tc=Duel.GetFirstTarget()
 
 	if tc
 		and tc:IsRelateToEffect(e)
+		and tc:IsControler(1-tp)
 		and tc:IsLocation(LOCATION_GRAVE)
 		and tc:IsSSetable()
 		and Duel.GetLocationCount(
