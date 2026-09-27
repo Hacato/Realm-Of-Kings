@@ -1,5 +1,5 @@
 --OTNN Tail Yellow
---Scripted by Raivost
+--Scripted by Hacato
 function c99930030.initial_effect(c)
   c:EnableReviveLimit()
   --Xyz Summon: 2+ Warrior monsters with the same Level

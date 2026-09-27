@@ -1,90 +1,131 @@
 --OTNN Twoearle
---Scripted by Raivost
-function c99930080.initial_effect(c)
+--Scripted by Hacato (Fixed)
+local s,id=GetID()
+function s.initial_effect(c)
   --(1) Special Summon from hand
   local e1=Effect.CreateEffect(c)
   e1:SetType(EFFECT_TYPE_FIELD)
   e1:SetCode(EFFECT_SPSUMMON_PROC)
   e1:SetProperty(EFFECT_FLAG_UNCOPYABLE)
   e1:SetRange(LOCATION_HAND)
-  e1:SetCondition(c99930080.hspcon)
+  e1:SetCondition(s.hspcon)
   c:RegisterEffect(e1)
+
   --(2) To Hand
   local e2=Effect.CreateEffect(c)
-  e2:SetDescription(aux.Stringid(99930080,0))
+  e2:SetDescription(aux.Stringid(id,0))
   e2:SetCategory(CATEGORY_TOHAND+CATEGORY_SEARCH)
-  e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_F)
+  e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
   e2:SetCode(EVENT_TO_GRAVE)
-  e2:SetTarget(c99930080.thtg)
-  e2:SetOperation(c99930080.thop)
+  e2:SetProperty(EFFECT_FLAG_DELAY)
+  e2:SetCountLimit(1,id)
+  e2:SetTarget(s.thtg)
+  e2:SetOperation(s.thop)
   c:RegisterEffect(e2)
-  --(3) Special Summon
+
+  --(3) Special Summon Xyz
   local e3=Effect.CreateEffect(c)
-  e3:SetDescription(aux.Stringid(99930080,1))
+  e3:SetDescription(aux.Stringid(id,1))
   e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
   e3:SetType(EFFECT_TYPE_IGNITION)
   e3:SetRange(LOCATION_MZONE)
-  e3:SetTarget(c99930080.sptg)
-  e3:SetOperation(c99930080.spop)
+  e3:SetCountLimit(1,id+1)
+  e3:SetCondition(s.spcon)
+  e3:SetTarget(s.sptg)
+  e3:SetOperation(s.spop)
   c:RegisterEffect(e3)
-  --(4) Gain rank
+
+  --(4) Gain Rank
   local e4=Effect.CreateEffect(c)
-  e4:SetCode(EFFECT_UPDATE_RANK)
   e4:SetType(EFFECT_TYPE_XMATERIAL)
-  e4:SetCondition(c99930080.rankcon)
-  e4:SetValue(c99930080.rankval)
+  e4:SetCode(EFFECT_UPDATE_RANK)
+  e4:SetValue(s.rankval)
   c:RegisterEffect(e4)
 end
---(1) Special Summon from hand
-function c99930080.hspcon(e,c)
+
+--(1) Special Summon condition
+function s.hspcon(e,c)
   if c==nil then return true end
-  return Duel.GetLocationCount(c:GetControler(),LOCATION_MZONE)>0
-  and Duel.GetFieldGroupCount(c:GetControler(),LOCATION_MZONE,0,nil)<Duel.GetFieldGroupCount(c:GetControler(),0,LOCATION_MZONE,nil)
+  local tp=c:GetControler()
+  return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
+    and (
+      Duel.GetFieldGroupCount(tp,0,LOCATION_MZONE) >
+      Duel.GetFieldGroupCount(tp,LOCATION_MZONE,0)
+      or not Duel.IsExistingMatchingCard(function(c)
+          return c:IsSetCard(0x993) and c:IsType(TYPE_XYZ)
+        end,tp,LOCATION_MZONE,0,1,nil)
+    )
 end
---(2) To Hand
-function c99930080.thfilter(c)
+
+--(2) Search
+function s.thfilter(c)
   return c:IsSetCard(0x993) and c:IsType(TYPE_SPELL) and c:IsAbleToHand()
 end
-function c99930080.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.IsExistingMatchingCard(c99930080.thfilter,tp,LOCATION_DECK+LOCATION_GRAVE,0,1,nil) end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
-  Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK+LOCATION_GRAVE)
+
+function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
+  if chk==0 then
+    return Duel.IsExistingMatchingCard(s.thfilter,tp,LOCATION_DECK,0,1,nil)
+  end
+  Duel.SetOperationInfo(0,CATEGORY_TOHAND,nil,1,tp,LOCATION_DECK)
 end
-function c99930080.thop(e,tp,eg,ep,ev,re,r,rp)
+
+function s.thop(e,tp,eg,ep,ev,re,r,rp)
   Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
-  local g=Duel.SelectMatchingCard(tp,aux.NecroValleyFilter(c99930080.thfilter),tp,LOCATION_DECK+LOCATION_GRAVE,0,1,1,nil)
-  if g:GetCount()>0 then
+  local g=Duel.SelectMatchingCard(tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil)
+  if #g>0 then
     Duel.SendtoHand(g,nil,REASON_EFFECT)
     Duel.ConfirmCards(1-tp,g)
   end
 end
---(3) Special Summon
-function c99930080.spfilter(c,e,tp)
-  return c:IsSetCard(0x993) and e:GetHandler():IsCanBeXyzMaterial(c,tp) and c:IsCanBeSpecialSummoned(e,0,tp,false,false)
+
+--(3) Xyz Summon condition
+function s.spcon(e,tp,eg,ep,ev,re,r,rp)
+  return not Duel.IsExistingMatchingCard(function(c)
+    return c:IsSetCard(0x993) and c:IsType(TYPE_XYZ)
+  end,tp,LOCATION_MZONE,0,1,nil)
 end
-function c99930080.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.GetLocationCountFromEx(tp,tp,e:GetHandler())>0
-  and Duel.IsExistingMatchingCard(c99930080.spfilter,tp,LOCATION_EXTRA,0,1,nil,e,tp) end
-  Duel.Hint(HINT_OPSELECTED,1-tp,e:GetDescription())
+
+function s.spfilter(c,e,tp,mc)
+  return c:IsSetCard(0x993) and c:IsType(TYPE_XYZ)
+    and mc:IsCanBeXyzMaterial(c)
+end
+
+function s.matfilter(c)
+  return c:IsSetCard(0x993) and not c:IsType(TYPE_XYZ)
+end
+
+function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk)
+  if chk==0 then
+    return Duel.GetLocationCountFromEx(tp,tp,nil)>0
+      and Duel.IsExistingMatchingCard(s.matfilter,tp,LOCATION_MZONE,0,1,nil)
+      and Duel.IsExistingMatchingCard(function(c)
+          return c:IsSetCard(0x993) and c:IsType(TYPE_XYZ)
+        end,tp,LOCATION_EXTRA,0,1,nil)
+  end
   Duel.SetOperationInfo(0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA)
 end
-function c99930080.spop(e,tp,eg,ep,ev,re,r,rp)
-  local c=e:GetHandler()
-  if Duel.GetLocationCountFromEx(tp,tp,c)>0 and c:IsFaceup() and c:IsRelateToEffect(e) and c:IsControler(tp) and not c:IsImmuneToEffect(e) then
-    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-    local g=Duel.SelectMatchingCard(tp,c99930080.spfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp)
-    local sc=g:GetFirst()
-    if sc then
-      sc:SetMaterial(Group.FromCards(c))
-      Duel.Overlay(sc,Group.FromCards(c))
-      Duel.SpecialSummon(sc,0,tp,tp,false,false,POS_FACEUP)
-    end
-  end
+
+function s.spop(e,tp,eg,ep,ev,re,r,rp)
+  if Duel.GetLocationCountFromEx(tp,tp,nil)<=0 then return end
+
+  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_XMATERIAL)
+  local mg=Duel.SelectMatchingCard(tp,s.matfilter,tp,LOCATION_MZONE,0,1,1,nil)
+  local mc=mg:GetFirst()
+  if not mc then return end
+
+  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
+  local sg=Duel.SelectMatchingCard(tp,s.spfilter,tp,LOCATION_EXTRA,0,1,1,nil,e,tp,mc)
+  local sc=sg:GetFirst()
+  if not sc then return end
+
+  sc:SetMaterial(mg)
+  Duel.Overlay(sc,mg)
+
+  Duel.SpecialSummon(sc,SUMMON_TYPE_XYZ,tp,tp,false,false,POS_FACEUP)
+  sc:CompleteProcedure()
 end
---(4) Gain rank
-function c99930080.rankcon(e)
-  return e:GetHandler():IsSetCard(0x993)
-end
-function c99930080.rankval(e,c)
-  return Duel.GetFieldGroupCount(0,LOCATION_MZONE,LOCATION_MZONE)
+
+--(4) Rank gain
+function s.rankval(e,c)
+  return Duel.GetFieldGroupCount(0,LOCATION_MZONE,LOCATION_MZONE)-1
 end
