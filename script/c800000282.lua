@@ -1,6 +1,14 @@
 --Trust Resonator
 local s,id=GetID()
 
+--Official card ID for "Assault Mode Activate"
+local ASSAULT_MODE_ACTIVATE=80280737
+
+--Trust Resonator mentions "Assault Mode Activate"
+--This allows effects that search cards which mention it
+--to recognize Trust Resonator
+s.listed_names={ASSAULT_MODE_ACTIVATE}
+
 function s.initial_effect(c)
 	--Reveal this card, send 1 "Resonator" Tuner
 	--or 1 monster that mentions "Assault Mode Activate",
@@ -36,9 +44,6 @@ end
 --==================================================
 -- FIRST EFFECT
 --==================================================
-
---Official card ID for "Assault Mode Activate"
-local ASSAULT_MODE_ACTIVATE=80280737
 
 --"Resonator" Tuner OR monster that mentions
 --"Assault Mode Activate", except Trust Resonator

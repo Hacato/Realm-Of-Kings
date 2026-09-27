@@ -7,15 +7,7 @@ function s.initial_effect(c)
 	c:EnableReviveLimit()
 
 	--1 Tuner + 1+ non-Tuner monsters
-	Synchro.AddProcedure(
-		c,
-		nil,
-		1,
-		1,
-		Synchro.NonTuner(nil),
-		1,
-		99
-	)
+	Synchro.AddProcedure(c,nil,1,1,Synchro.NonTuner(nil),1,99)
 
 	--This card's name becomes "Red Dragon Archfiend"
 	--while on the field or in the GY
@@ -27,15 +19,16 @@ function s.initial_effect(c)
 	e1:SetValue(CARD_RED_DRAGON_ARCHFIEND)
 	c:RegisterEffect(e1)
 
-	--Piercing battle damage
+	--If this card battles a Defense Position monster,
+	--inflict piercing battle damage
 	local e2=Effect.CreateEffect(c)
 	e2:SetType(EFFECT_TYPE_SINGLE)
 	e2:SetCode(EFFECT_PIERCE)
 	c:RegisterEffect(e2)
 
 	--At the start of the Damage Step, if this card battles:
-	--banish any number of Tuners from GY;
-	--gain 1000 ATK for each
+	--banish any number of Tuners from your GY;
+	--gain 1000 ATK for each until the end of the Damage Step
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,0))
 	e3:SetCategory(CATEGORY_REMOVE+CATEGORY_ATKCHANGE)
@@ -47,8 +40,9 @@ function s.initial_effect(c)
 	c:RegisterEffect(e3)
 
 	--GY Quick Effect:
-	--banish this card; destroy all opponent's
-	--Defense Position monsters
+	--banish this card;
+	--destroy all Defense Position monsters
+	--your opponent controls
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,1))
 	e4:SetCategory(CATEGORY_DESTROY)
@@ -64,12 +58,13 @@ end
 s.listed_names={CARD_RED_DRAGON_ARCHFIEND}
 
 --==================================================
--- ATK gain
+-- EFFECT 1
+-- ATK GAIN
 --==================================================
 
 function s.tunerfilter(c)
-	return c:IsType(TYPE_TUNER)
-		and c:IsMonster()
+	return c:IsMonster()
+		and c:IsType(TYPE_TUNER)
 		and c:IsAbleToRemove()
 end
 
@@ -79,22 +74,21 @@ function s.atkcon(e,tp,eg,ep,ev,re,r,rp)
 end
 
 function s.atktg(e,tp,eg,ep,ev,re,r,rp,chk)
-	local g=Duel.GetMatchingGroup(
-		s.tunerfilter,
-		tp,
-		LOCATION_GRAVE,
-		0,
-		nil
-	)
-
 	if chk==0 then
-		return #g>0
+		return Duel.IsExistingMatchingCard(
+			s.tunerfilter,
+			tp,
+			LOCATION_GRAVE,
+			0,
+			1,
+			nil
+		)
 	end
 
 	Duel.SetOperationInfo(
 		0,
 		CATEGORY_REMOVE,
-		g,
+		nil,
 		1,
 		tp,
 		LOCATION_GRAVE
@@ -165,15 +159,20 @@ function s.atkop(e,tp,eg,ep,ev,re,r,rp)
 end
 
 --==================================================
--- GY Quick Effect
+-- EFFECT 2
+-- GY QUICK EFFECT
 --
--- Banish this card;
--- destroy all Defense Position monsters
--- your opponent controls.
+-- (Quick Effect):
+-- You can banish this card from your GY;
+-- destroy all Defense Position monsters your
+-- opponent controls, also you cannot Special
+-- Summon from the Extra Deck until your next
+-- End Phase, except DARK Dragon Synchro Monsters.
 --
--- Also, until your next End Phase,
--- you cannot Special Summon from the Extra Deck,
--- except DARK Dragon Synchro Monsters.
+-- IMPORTANT:
+-- This effect can only be activated if the
+-- opponent currently controls at least 1
+-- destructible Defense Position monster.
 --==================================================
 
 function s.descost(e,tp,eg,ep,ev,re,r,rp,chk)
@@ -196,8 +195,17 @@ function s.defilter(c)
 end
 
 function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
+	--Do not allow activation if there is nothing
+	--for this effect to destroy
 	if chk==0 then
-		return true
+		return Duel.IsExistingMatchingCard(
+			s.defilter,
+			tp,
+			0,
+			LOCATION_MZONE,
+			1,
+			nil
+		)
 	end
 
 	local g=Duel.GetMatchingGroup(
@@ -218,13 +226,18 @@ function s.destg(e,tp,eg,ep,ev,re,r,rp,chk)
 	)
 end
 
+--==================================================
+-- EXTRA DECK RESTRICTION
+--
+-- Only DARK Dragon Synchro Monsters can be
+-- Special Summoned from the Extra Deck.
+--==================================================
+
 function s.extralimit(e,c,sump,sumtype,sumpos,targetp,se)
 	if not c:IsLocation(LOCATION_EXTRA) then
 		return false
 	end
 
-	--Only DARK Dragon Synchro Monsters
-	--may be Special Summoned from the Extra Deck
 	return not (
 		c:IsType(TYPE_SYNCHRO)
 		and c:IsRace(RACE_DRAGON)
@@ -234,7 +247,8 @@ end
 
 function s.desop(e,tp,eg,ep,ev,re,r,rp)
 
-	--Destroy all opponent's Defense Position monsters
+	--Destroy all Defense Position monsters
+	--the opponent currently controls
 	local g=Duel.GetMatchingGroup(
 		s.defilter,
 		tp,
@@ -251,7 +265,7 @@ function s.desop(e,tp,eg,ep,ev,re,r,rp)
 	end
 
 	--==================================================
-	-- Extra Deck restriction
+	-- Apply Extra Deck restriction
 	-- until YOUR next End Phase
 	--==================================================
 
@@ -263,10 +277,11 @@ function s.desop(e,tp,eg,ep,ev,re,r,rp)
 	e1:SetTarget(s.extralimit)
 
 	--If activated during your turn:
-	--reset this End Phase.
+	--the restriction ends during this End Phase.
 	--
-	--If activated during opponent's turn:
-	--pass their End Phase and reset during yours.
+	--If activated during the opponent's turn:
+	--it survives their End Phase and ends during
+	--your following End Phase.
 	local ct=1
 
 	if Duel.GetTurnPlayer()~=tp then
