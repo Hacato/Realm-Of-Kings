@@ -1,131 +1,377 @@
 --Renshaddoll Winda
 local s,id=GetID()
 local params={aux.FilterBoolFunction(Card.IsSetCard,SET_SHADDOLL)}
+
 function s.initial_effect(c)
-	--flip 
+	--FLIP: Fusion Summon 1 "Shaddoll" Fusion Monster
 	local e1=Effect.CreateEffect(c)
-		e1:SetDescription(aux.Stringid(id,0))
-		e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
-		e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_FLIP+EFFECT_TYPE_TRIGGER_O)
-		e1:SetProperty(EFFECT_FLAG_CARD_TARGET+EFFECT_FLAG_DELAY)
-		e1:SetCountLimit(1,id)
-		e1:SetTarget(Fusion.SummonEffTG(table.unpack(params)))
-		e1:SetOperation(Fusion.SummonEffOP(table.unpack(params)))
-	c:RegisterEffect(e1,false,CUSTOM_REGISTER_FLIP)	
-	--effect gain
+	e1:SetDescription(aux.Stringid(id,0))
+	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
+	e1:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_FLIP+EFFECT_TYPE_TRIGGER_O)
+	e1:SetProperty(EFFECT_FLAG_DELAY)
+	e1:SetCountLimit(1,id)
+	e1:SetTarget(Fusion.SummonEffTG(table.unpack(params)))
+	e1:SetOperation(Fusion.SummonEffOP(table.unpack(params)))
+	c:RegisterEffect(e1,false,CUSTOM_REGISTER_FLIP)
+
+	--If sent to the GY by a card effect:
+	--Target 1 "Shaddoll" Fusion Monster you control;
+	--it gains the listed Quick Effect
 	local e2=Effect.CreateEffect(c)
-	    e2:SetDescription(aux.Stringid(id,1))
-		e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-		e2:SetProperty(EFFECT_FLAG_DELAY)
-		e2:SetCode(EVENT_TO_GRAVE)
-		e2:SetCountLimit(1,id)
-		e2:SetCondition(s.effcon)
-		e2:SetTarget(s.efftg)
-		e2:SetOperation(s.effop)
+	e2:SetDescription(aux.Stringid(id,1))
+	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
+	e2:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_CARD_TARGET)
+	e2:SetCode(EVENT_TO_GRAVE)
+	e2:SetCountLimit(1,id)
+	e2:SetCondition(s.effcon)
+	e2:SetTarget(s.efftg)
+	e2:SetOperation(s.effop)
 	c:RegisterEffect(e2)
 end
-function s.efffilter(c)
-	return c:IsSetCard(SET_SHADDOLL)
-		and c:IsType(TYPE_FUSION)
-end
+
+s.listed_series={SET_SHADDOLL}
+
+--==================================================
+-- SENT TO GY EFFECT
+--==================================================
+
 function s.effcon(e,tp,eg,ep,ev,re,r,rp)
 	return e:GetHandler():IsReason(REASON_EFFECT)
 end
+
+function s.efffilter(c)
+	return c:IsFaceup()
+		and c:IsSetCard(SET_SHADDOLL)
+		and c:IsType(TYPE_FUSION)
+end
+
 function s.efftg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chkc then return chkc:IsLocation(LOCATION_MZONE) and chkc:IsControler(tp) end
-	if chk==0 then return Duel.IsExistingTarget(s.efffilter,tp,LOCATION_MZONE,0,1,nil) end
+	if chkc then
+		return chkc:IsControler(tp)
+			and chkc:IsLocation(LOCATION_MZONE)
+			and s.efffilter(chkc)
+	end
+
+	if chk==0 then
+		return Duel.IsExistingTarget(
+			s.efffilter,
+			tp,
+			LOCATION_MZONE,
+			0,
+			1,
+			nil
+		)
+	end
+
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FACEUP)
-	local g=Duel.SelectTarget(tp,s.efffilter,tp,LOCATION_MZONE,0,1,1,nil)
+	Duel.SelectTarget(
+		tp,
+		s.efffilter,
+		tp,
+		LOCATION_MZONE,
+		0,
+		1,
+		1,
+		nil
+	)
 end
+
+--==================================================
+-- GRANT QUICK EFFECT
+--==================================================
+
 function s.effop(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
 	local tc=Duel.GetFirstTarget()
-	if tc and tc:IsFaceup() and tc:IsRelateToEffect(e) then
-		Duel.HintSelection(tc)
-		local e1=Effect.CreateEffect(tc)
-			e1:SetDescription(aux.Stringid(id,2))
-			e1:SetCategory(CATEGORY_TOGRAVE)
-			e1:SetType(EFFECT_TYPE_QUICK_O)
-			e1:SetCode(EVENT_FREE_CHAIN)
-			e1:SetRange(LOCATION_MZONE)
-			e1:SetProperty(EFFECT_FLAG_CARD_TARGET)
-			e1:SetCountLimit(1,{id,1})
-			e1:SetCost(s.cost)
-			e1:SetOperation(s.operation)
-			e1:SetReset(RESET_EVENT+0x1fe0000)
-		tc:RegisterEffect(e1)
+
+	if not (tc and tc:IsFaceup() and tc:IsRelateToEffect(e)) then
+		return
 	end
+
+	Duel.HintSelection(tc)
+
+	local e1=Effect.CreateEffect(tc)
+	e1:SetDescription(aux.Stringid(id,2))
+	e1:SetCategory(CATEGORY_TOGRAVE)
+	e1:SetType(EFFECT_TYPE_QUICK_O)
+	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetRange(LOCATION_MZONE)
+	e1:SetHintTiming(0,TIMINGS_CHECK_MONSTER+TIMING_MAIN_END)
+	e1:SetCountLimit(1,{id,1})
+	e1:SetTarget(s.copytg)
+	e1:SetOperation(s.copyop)
+	e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+	tc:RegisterEffect(e1)
 end
-function s.filter(c,e,tp)
-	if not (c:IsSetCard(SET_SHADDOLL) and c:IsType(TYPE_MONSTER)
-		and c:IsHasEffect(TYPE_FLIP) and c:IsAbleToGraveAsCost()) then 
-		return false
-	end
-	local eff={c:GetCardEffect(TYPE_FLIP)}
-	for _,teh in ipairs(eff) do
-		local te=teh:GetLabelObject()
-		local con=te:GetCondition()
-		local tg=te:GetTarget()
-		if (not con or con(te,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,0)) 
-			and (not tg or tg(te,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,0)) then return true end
-	end
-	return false
+
+--==================================================
+-- VALID SHADDOLL FLIP MONSTER
+--==================================================
+
+function s.copyfilter(c)
+	return c:IsSetCard(SET_SHADDOLL)
+		and c:IsMonster()
+		and c:IsType(TYPE_FLIP)
+		and c:IsAbleToGrave()
 end
-function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return Duel.IsExistingMatchingCard(s.filter,tp,LOCATION_DECK,0,1,nil,e,tp) end
+
+--==================================================
+-- QUICK EFFECT TARGET
+--
+--Nothing is sent as cost.
+--
+--We only check that a valid Shaddoll Flip monster
+--exists in the Deck.
+--==================================================
+
+function s.copytg(e,tp,eg,ep,ev,re,r,rp,chk)
+	if chk==0 then
+		return Duel.IsExistingMatchingCard(
+			s.copyfilter,
+			tp,
+			LOCATION_DECK,
+			0,
+			1,
+			nil
+		)
+	end
+
+	Duel.SetOperationInfo(
+		0,
+		CATEGORY_TOGRAVE,
+		nil,
+		1,
+		tp,
+		LOCATION_DECK
+	)
+end
+
+--==================================================
+-- FIND ACTUAL REGISTERED FLIP EFFECT
+--==================================================
+
+function s.getflip(c)
+	local effects={c:GetOwnEffects()}
+
+	for _,te in ipairs(effects) do
+		if te then
+			local typ=te:GetType()
+
+			if typ and (typ&EFFECT_TYPE_FLIP)~=0 then
+				return te
+			end
+		end
+	end
+
+	return nil
+end
+
+--==================================================
+-- QUICK EFFECT RESOLUTION
+--==================================================
+
+function s.copyop(e,tp,eg,ep,ev,re,r,rp)
+
+	--==================================================
+	-- SELECT SHADDOLL FLIP MONSTER
+	--
+	--Selection happens during resolution.
+	--==================================================
+
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
-	local g=Duel.SelectMatchingCard(tp,s.filter,tp,LOCATION_DECK,0,1,1,nil,e,tp)
-	e:SetLabelObject(g)
-	Group.KeepAlive(g)
-	Duel.SendtoGrave(g,REASON_COST)
-end
-function s.operation(e,tp,eg,ep,ev,re,r,rp)
-	local tc=e:GetLabelObject():GetFirst()
-	tc:CreateEffectRelation(e)
-	if tc and tc:IsRelateToEffect(e) then
-		local eff={tc:GetCardEffect(TYPE_FLIP)}
-		local te=nil
-		local acd={}
-		local ac={}
-		for _,teh in ipairs(eff) do
-			local temp=teh:GetLabelObject()
-			local con=temp:GetCondition()
-			local tg=temp:GetTarget()
-			if (not con or con(temp,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,0)) 
-				and (not tg or tg(temp,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,0)) then
-				table.insert(ac,teh)
-				table.insert(acd,temp:GetDescription())
-			end
-		end
-		if #ac==1 then te=ac[1] elseif #ac>1 then
-			Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_EFFECT)
-			op=Duel.SelectOption(tp,table.unpack(acd))
-			op=op+1
-			te=ac[op]
-		end
-		if not te then return end
-		Duel.ClearTargetCard()
-		local teh=te
-		te=teh:GetLabelObject()
-		local tg=te:GetTarget()
-		local op=te:GetOperation()
-		if tg then tg(te,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,1) end
-		Duel.BreakEffect()
-		tc:CreateEffectRelation(te)
-		Duel.BreakEffect()
-		local g=Duel.GetChainInfo(0,CHAININFO_TARGET_CARDS)
-		if g then
-			for etc in aux.Next(g) do
-				etc:CreateEffectRelation(te)
-			end
-		end
-		if op then op(te,tp,Group.CreateGroup(),PLAYER_NONE,0,teh,REASON_EFFECT,PLAYER_NONE,1) end
-		tc:ReleaseEffectRelation(te)
-		if g then
-			for etc in aux.Next(g) do
-				etc:ReleaseEffectRelation(te)
-			end
+
+	local g=Duel.SelectMatchingCard(
+		tp,
+		s.copyfilter,
+		tp,
+		LOCATION_DECK,
+		0,
+		1,
+		1,
+		nil
+	)
+
+	local tc=g:GetFirst()
+
+	if not tc then
+		return
+	end
+
+	--==================================================
+	-- CAPTURE FLIP EFFECT BEFORE MOVING THE CARD
+	--==================================================
+
+	local te=s.getflip(tc)
+
+	--==================================================
+	-- SEND BY CARD EFFECT
+	--
+	--THIS IS THE IMPORTANT CHANGE.
+	--
+	--REASON_EFFECT means Shaddoll effects that trigger
+	--when sent to the GY by a card effect can activate.
+	--==================================================
+
+	if Duel.SendtoGrave(tc,REASON_EFFECT)==0 then
+		return
+	end
+
+	--The monster must actually reach the GY.
+	if not tc:IsLocation(LOCATION_GRAVE) then
+		return
+	end
+
+	--No FLIP payload found.
+	if not te then
+		return
+	end
+
+	--==================================================
+	-- GET FLIP EFFECT PAYLOAD
+	--==================================================
+
+	local cost=te:GetCost()
+	local tg=te:GetTarget()
+	local op=te:GetOperation()
+
+	--==================================================
+	-- CHECK WHETHER COPIED EFFECT CAN APPLY
+	--
+	--Example:
+	--Ariel with no banished Shaddoll should stop here
+	--instead of producing a Lua error.
+	--==================================================
+
+	if tg then
+		local canapply=tg(
+			e,
+			tp,
+			Group.CreateGroup(),
+			PLAYER_NONE,
+			0,
+			e,
+			REASON_EFFECT,
+			tp,
+			0
+		)
+
+		if not canapply then
+			return
 		end
 	end
-	Group.DeleteGroup(e:GetLabelObject())
+
+	--==================================================
+	-- SAVE QUICK EFFECT STATE
+	--==================================================
+
+	local oldlabel=e:GetLabel()
+	local oldobject=e:GetLabelObject()
+
+	e:SetLabel(te:GetLabel())
+	e:SetLabelObject(te:GetLabelObject())
+
+	--==================================================
+	-- COPIED FLIP EFFECT COST/SETUP
+	--
+	--This is NOT the Deck send.
+	--
+	--The Deck send already occurred above by effect.
+	--==================================================
+
+	if cost then
+		local canpay=cost(
+			e,
+			tp,
+			Group.CreateGroup(),
+			PLAYER_NONE,
+			0,
+			e,
+			REASON_EFFECT,
+			tp,
+			0
+		)
+
+		if canpay==false then
+			e:SetLabel(oldlabel)
+			e:SetLabelObject(oldobject)
+			return
+		end
+
+		cost(
+			e,
+			tp,
+			Group.CreateGroup(),
+			PLAYER_NONE,
+			0,
+			e,
+			REASON_EFFECT,
+			tp,
+			1
+		)
+	end
+
+	--==================================================
+	-- COPIED TARGET / SETUP
+	--==================================================
+
+	if tg then
+		tg(
+			e,
+			tp,
+			Group.CreateGroup(),
+			PLAYER_NONE,
+			0,
+			e,
+			REASON_EFFECT,
+			tp,
+			1
+		)
+	end
+
+	--==================================================
+	-- TARGET SAFETY
+	--
+	--If the copied effect requires a card target but
+	--failed to establish one, stop before its operation.
+	--==================================================
+
+	if te:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then
+		local targets=Duel.GetChainInfo(
+			0,
+			CHAININFO_TARGET_CARDS
+		)
+
+		if not targets or #targets==0 then
+			e:SetLabel(oldlabel)
+			e:SetLabelObject(oldobject)
+			return
+		end
+	end
+
+	--==================================================
+	-- APPLY THE FLIP EFFECT
+	--
+	--"e" is the Shaddoll Fusion's Quick Effect.
+	--
+	--The sent monster supplies only its FLIP payload.
+	--==================================================
+
+	if op then
+		op(
+			e,
+			tp,
+			Group.CreateGroup(),
+			PLAYER_NONE,
+			0,
+			e,
+			REASON_EFFECT,
+			tp
+		)
+	end
+
+	--==================================================
+	-- RESTORE EFFECT STATE
+	--==================================================
+
+	e:SetLabel(oldlabel)
+	e:SetLabelObject(oldobject)
 end
