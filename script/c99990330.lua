@@ -15,11 +15,11 @@ function s.accostfilter(c)
   return c:IsSetCard(0x999) and c:IsType(TYPE_MONSTER) and (c:IsLocation(LOCATION_HAND) or c:IsFaceup()) and c:IsAbleToGraveAsCost()
 end
 function s.accost(e,tp,eg,ep,ev,re,r,rp,chk)
-  local b1=Duel.IsCanRemoveCounter(tp,1,0,0x1999,2,REASON_COST)
+  local b1=Duel.IsCanRemoveCounter(tp,1,0,0x1994,2,REASON_COST)
   local b2=Duel.IsExistingMatchingCard(s.accostfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,nil)
   if chk==0 then return b1 or b2 end
   if b1 and ((not b2) or Duel.SelectYesNo(tp,aux.Stringid(id,0))) then
-    Duel.RemoveCounter(tp,1,0,0x1999,2,REASON_COST)
+    Duel.RemoveCounter(tp,1,0,0x1994,2,REASON_COST)
   else
     Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
     local g=Duel.SelectMatchingCard(tp,s.accostfilter,tp,LOCATION_HAND+LOCATION_MZONE,0,1,1,nil)
