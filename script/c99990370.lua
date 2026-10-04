@@ -47,8 +47,8 @@ function s.drcon(e,tp,eg,ep,ev,re,r,rp)
   return re and re:GetHandler():IsSetCard(0x999)
 end
 function s.drcost(e,tp,eg,ep,ev,re,r,rp,chk)
-  if chk==0 then return Duel.IsCanRemoveCounter(tp,1,0,0x1999,1,REASON_COST) end
-  Duel.RemoveCounter(tp,1,0,0x1999,1,REASON_COST)
+  if chk==0 then return Duel.IsCanRemoveCounter(tp,1,0,0x1994,1,REASON_COST) end
+  Duel.RemoveCounter(tp,1,0,0x1994,1,REASON_COST)
 end
 function s.drtg(e,tp,eg,ep,ev,re,r,rp,chk)
   if chk==0 then return Duel.IsPlayerCanDraw(tp,2) end
