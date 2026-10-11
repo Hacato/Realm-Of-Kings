@@ -1,89 +1,176 @@
+
 --Seafarer Undead King Black Bart
-function c77777705.initial_effect(c)
---synchro summon
-	Synchro.AddProcedure(c,nil,1,1,Synchro.NonTunerEx(Card.IsSetCard,0x999),1,99)
-	c:EnableReviveLimit()
-	--set
-	local e1=Effect.CreateEffect(c)
-	e1:SetDescription(aux.Stringid(77777705,1))
-	e1:SetType(EFFECT_TYPE_IGNITION)
-	e1:SetCode(EVENT_FREE_CHAIN)
-	e1:SetRange(LOCATION_MZONE)
-	e1:SetCountLimit(1)
-	e1:SetTarget(c77777705.target)
-	e1:SetOperation(c77777705.operation)
-	c:RegisterEffect(e1)
-	--Banish
-	local e2=Effect.CreateEffect(c)
-	e2:SetCategory(CATEGORY_DESTROY+CATEGORY_REMOVE)
-	e2:SetType(EFFECT_TYPE_IGNITION)
-	e2:SetRange(LOCATION_MZONE)
-	e2:SetCountLimit(1)
-	e2:SetDescription(aux.Stringid(77777705,0))
-	e2:SetTarget(c77777705.destarget)
-	e2:SetOperation(c77777705.desoperation)
-	c:RegisterEffect(e2)
-	--cannot be target
-	local e3=Effect.CreateEffect(c)
-	e3:SetType(EFFECT_TYPE_SINGLE)
-	e3:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
-	e3:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-	e3:SetRange(LOCATION_MZONE)
-	e3:SetValue(c77777705.tgval)
-	c:RegisterEffect(e3)
+local s,id=GetID()
+local SET_SEAFARER=0x2A99
+
+function s.initial_effect(c)
+    --Synchro Summon:
+    --1 Tuner + 1 or more non-Tuner "Seafarer" monsters
+    Synchro.AddProcedure(c,nil,1,1,
+        Synchro.NonTunerEx(Card.IsSetCard,SET_SEAFARER),1,99)
+    c:EnableReviveLimit()
+
+    --Once per turn:
+    --Destroy 1 Spell/Trap you control,
+    --then banish 1 card your opponent controls
+    local e1=Effect.CreateEffect(c)
+    e1:SetDescription(aux.Stringid(id,0))
+    e1:SetCategory(CATEGORY_DESTROY+CATEGORY_REMOVE)
+    e1:SetType(EFFECT_TYPE_IGNITION)
+    e1:SetRange(LOCATION_MZONE)
+    e1:SetCountLimit(1)
+    e1:SetTarget(s.rmtg)
+    e1:SetOperation(s.rmop)
+    c:RegisterEffect(e1)
+
+    --Once per turn:
+    --Set 1 Spell/Trap from opponent's hand or GY
+    local e2=Effect.CreateEffect(c)
+    e2:SetDescription(aux.Stringid(id,1))
+    e2:SetCategory(CATEGORY_CONTROL)
+    e2:SetType(EFFECT_TYPE_IGNITION)
+    e2:SetRange(LOCATION_MZONE)
+    e2:SetCountLimit(1)
+    e2:SetTarget(s.settg)
+    e2:SetOperation(s.setop)
+    c:RegisterEffect(e2)
+
+    --Cannot be targeted by opponent's card effects
+    local e3=Effect.CreateEffect(c)
+    e3:SetType(EFFECT_TYPE_SINGLE)
+    e3:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+    e3:SetRange(LOCATION_MZONE)
+    e3:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
+    e3:SetValue(aux.tgoval)
+    c:RegisterEffect(e3)
 end
 
-function c77777705.tgval(e,re,rp)
-	return rp~=e:GetHandlerPlayer()
+--Spell/Trap you control that can be destroyed
+function s.desfilter(c)
+    return c:IsSpellTrap() and c:IsDestructable()
 end
 
-function c77777705.filter(c)
-	return c:IsDestructable() and c:IsType(TYPE_SPELL+TYPE_TRAP)
+--Opponent's card that can be banished
+function s.rmfilter(c)
+    return c:IsAbleToRemove()
 end
-function c77777705.filter2(c)
-	return c:IsType(TYPE_SPELL+TYPE_TRAP) and c:IsAbleToChangeControler()
-end
-function c77777705.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return  Duel.IsExistingMatchingCard(c77777705.filter2,tp,0,LOCATION_HAND+LOCATION_GRAVE,1,nil) 
-	and Duel.IsExistingMatchingCard(c77777705.filter,tp,LOCATION_ONFIELD,0,1,nil)end
-	Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,tp,LOCATION_ONFIELD)
-  Duel.SetOperationInfo(0,CATEGORY_CONTROL,nil,1,0,0)
-end
-function c77777705.operation(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-  local g=Duel.GetFieldGroup(tp,0,LOCATION_HAND)
-  local tg=Duel.GetFieldGroup(tp,0,LOCATION_HAND)
-  if g:GetCount()>0 then
-    tg=g:Filter(Card.IsType,nil,TYPE_SPELL+TYPE_TRAP)
-    Duel.ConfirmCards(tp,tg)
-  end
-  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_CONTROL)
-  local hg=Duel.SelectMatchingCard(tp,c77777705.filter2,tp,0,LOCATION_HAND+LOCATION_GRAVE,1,1,nil)
-  local tc=hg:GetFirst()
-  Duel.MoveToField(tc,tp,tp,LOCATION_SZONE,POS_FACEUP,true)
-  Duel.ChangePosition(tc,POS_FACEDOWN)
-  Duel.ConfirmCards(1-tp,tc)
-  Duel.ShuffleHand(1-tp)
-  end
 
-function c77777705.dfilter(c,s)
-	return c:IsType(TYPE_SPELL+TYPE_TRAP) and c:IsDestructable()
+function s.rmtg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then
+        return Duel.IsExistingMatchingCard(
+            s.desfilter,tp,LOCATION_ONFIELD,0,1,nil
+        )
+        and Duel.IsExistingMatchingCard(
+            s.rmfilter,tp,0,LOCATION_ONFIELD,1,nil
+        )
+    end
+
+    Duel.SetOperationInfo(
+        0,CATEGORY_DESTROY,nil,1,tp,LOCATION_ONFIELD
+    )
+    Duel.SetOperationInfo(
+        0,CATEGORY_REMOVE,nil,1,1-tp,LOCATION_ONFIELD
+    )
 end
-function c77777705.destarget(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-	if chk==0 then return Duel.IsExistingMatchingCard(Card.IsAbleToRemove,tp,0,LOCATION_ONFIELD,1,nil) and Duel.IsExistingMatchingCard(c77777705.dfilter,tp,LOCATION_ONFIELD,0,1,e:GetHandler())end
-	Duel.SetOperationInfo(0,CATEGORY_DESTROY,nil,1,tp,LOCATION_ONFIELD)
-  Duel.SetOperationInfo(0,CATEGORY_REMOVE,nil,1,0,0)
+
+function s.rmop(e,tp,eg,ep,ev,re,r,rp)
+    --Destroy 1 Spell/Trap you control
+    if not Duel.IsExistingMatchingCard(
+        s.desfilter,tp,LOCATION_ONFIELD,0,1,nil
+    ) then
+        return
+    end
+
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
+    local dg=Duel.SelectMatchingCard(
+        tp,s.desfilter,tp,LOCATION_ONFIELD,0,1,1,nil
+    )
+    if #dg==0 then return end
+
+    if Duel.Destroy(dg,REASON_EFFECT)==0 then
+        return
+    end
+
+    --Then banish 1 opponent's card
+    if not Duel.IsExistingMatchingCard(
+        s.rmfilter,tp,0,LOCATION_ONFIELD,1,nil
+    ) then
+        return
+    end
+
+    Duel.BreakEffect()
+
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
+    local rg=Duel.SelectMatchingCard(
+        tp,s.rmfilter,tp,0,LOCATION_ONFIELD,1,1,nil
+    )
+
+    if #rg>0 then
+        Duel.Remove(rg,POS_FACEUP,REASON_EFFECT)
+    end
 end
-function c77777705.desoperation(e,tp,eg,ep,ev,re,r,rp)
-  if not Duel.IsExistingMatchingCard(c77777705.dfilter,tp,LOCATION_ONFIELD,0,1,e:GetHandler()) then return end
-  Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DESTROY)
-	local tc=Duel.SelectMatchingCard(tp,c77777705.dfilter,tp,LOCATION_ONFIELD,0,1,1,nil,e,tp)
-	if Duel.Destroy(tc,REASON_EFFECT)~=0 and Duel.IsExistingMatchingCard(Card.IsAbleToRemove,tp,0,LOCATION_ONFIELD,1,nil) then
-		Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_REMOVE)
-		local g=Duel.SelectMatchingCard(tp,Card.IsAbleToRemove,tp,0,LOCATION_ONFIELD,1,1,nil)
-		if g:GetCount()>0 then
-			Duel.HintSelection(g)
-			Duel.Remove(g,POS_FACEUP,REASON_EFFECT)
-		end	
-	end
+
+--Spell/Trap in opponent's hand or GY
+function s.setfilter(c)
+    return c:IsSpellTrap()
+        and c:IsAbleToChangeControler()
+        and c:IsSSetable()
+end
+
+function s.settg(e,tp,eg,ep,ev,re,r,rp,chk)
+    if chk==0 then
+        return Duel.GetLocationCount(tp,LOCATION_SZONE)>0
+            and Duel.IsExistingMatchingCard(
+                s.setfilter,tp,0,
+                LOCATION_HAND+LOCATION_GRAVE,1,nil
+            )
+    end
+
+    Duel.SetOperationInfo(
+        0,CATEGORY_CONTROL,nil,1,1-tp,
+        LOCATION_HAND+LOCATION_GRAVE
+    )
+end
+
+function s.setop(e,tp,eg,ep,ev,re,r,rp)
+    if Duel.GetLocationCount(tp,LOCATION_SZONE)<=0 then
+        return
+    end
+
+    --Reveal opponent's hand so you can select
+    --a Spell/Trap, then shuffle their hand afterward
+    local hg=Duel.GetFieldGroup(tp,0,LOCATION_HAND)
+    local reveal=hg:Filter(Card.IsSpellTrap,nil)
+
+    if #reveal>0 then
+        Duel.ConfirmCards(tp,reveal)
+    end
+
+    if not Duel.IsExistingMatchingCard(
+        s.setfilter,tp,0,
+        LOCATION_HAND+LOCATION_GRAVE,1,nil
+    ) then
+        Duel.ShuffleHand(1-tp)
+        return
+    end
+
+    Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SET)
+    local sg=Duel.SelectMatchingCard(
+        tp,s.setfilter,tp,0,
+        LOCATION_HAND+LOCATION_GRAVE,1,1,nil
+    )
+
+    local tc=sg:GetFirst()
+    if not tc then
+        Duel.ShuffleHand(1-tp)
+        return
+    end
+
+    --Set the selected opponent's Spell/Trap
+    --on your side of the field
+    Duel.MoveToField(
+        tc,tp,tp,LOCATION_SZONE,POS_FACEDOWN,true
+    )
+
+    Duel.ShuffleHand(1-tp)
 end
